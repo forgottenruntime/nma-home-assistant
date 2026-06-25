@@ -1,5 +1,9 @@
 # NMA Mobile Credentials — Home Assistant integration
 
+<p align="center">
+  <img src="brand/logo@2x.png" alt="NMA Mobile Credentials" width="440">
+</p>
+
 A HACS-installable Home Assistant custom component that wraps the
 [NMA API](../nma-api) and exposes a Company, its People and its Credentials as
 Home Assistant entities. Built primarily as a **test/debug harness** for the API.
