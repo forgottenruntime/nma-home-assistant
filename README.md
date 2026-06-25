@@ -1,0 +1,291 @@
+# NMA Mobile Credentials — Home Assistant integration
+
+A HACS-installable Home Assistant custom component that wraps the
+[NMA API](../nma-api) and exposes a Company, its People and its Credentials as
+Home Assistant entities. Built primarily as a **test/debug harness** for the API.
+
+> Sibling project to [`nma-api`](../nma-api) which contains the OpenAPI spec
+> and the Python client this integration vendors.
+
+---
+
+## Features
+
+- Single config entry per **Company ID**, configured fully through the UI.
+- **One device** per company, all entities grouped under it.
+- **Connectivity watchdog**: `binary_sensor.*_api_reachable` is on while the
+  most recent poll succeeded; attributes expose base URL, polling interval,
+  last fetch duration, and last error message.
+- **ACS WebSocket** binary sensor (`device_class: connectivity`) +
+  `since` timestamp sensor + pending-message-count sensor.
+- Company info sensors: name, status, type, ACS (`ATWORK`/`AEOS`),
+  UAP migration status, enabled platforms, max-people, max-credentials,
+  use-app-key, DF name, TCI value, tenant ID.
+- **People** sensors: total count, plus counts per `PersonStatus`,
+  per `Platform`, per `UapMigrationStatus`.
+- **Credentials** sensors: total count, plus counts per `CredentialStatus`,
+  per `Platform`, per `DeviceType`, per `UapMigrationStatus`.
+- **One sensor per Person** and **one per Credential** (disabled by default
+  in the entity registry — enable from the device page when you need them).
+- Diagnostic sensors: last successful update timestamp, last update
+  duration in seconds.
+- Action `nma.refresh` to poll on demand.
+- Redacted **diagnostics download** from the device page (emails, names,
+  tenant ID and contact blocks are stripped).
+
+## Install
+
+Pick the option that matches your setup. The fastest way to **just try it** is
+the Docker quickstart below — it spins up a throwaway HA you can wipe with one
+command.
+
+### Option A — Quickstart with Docker (recommended for testing)
+
+You need Docker Desktop (or Docker Engine) installed.
+
+```bash
+cd ~/nma-home-assistant
+docker compose up -d
+# wait ~30 seconds for first boot, then
+open http://localhost:8123
+```
+
+Onboard with any name/password (it's a throwaway instance). Then:
+
+**Settings → Devices & services → Add integration → NMA Mobile Credentials**
+
+The integration source is bind-mounted **read-only** from this repo, so to
+pick up code changes:
+
+```bash
+docker compose restart
+```
+
+To wipe HA and the integration config completely:
+
+```bash
+docker compose down -v
+```
+
+> macOS note: the bundled `compose.yaml` uses `network_mode: host` so HA can
+> reach `127.0.0.1:8765` (the mock server). On Docker Desktop for Mac, host
+> networking is best-effort — if `http://localhost:8123` doesn't load, edit
+> `compose.yaml` (comment out `network_mode: host`, uncomment the `ports:`
+> block) and use `http://host.docker.internal:8765` as the Base URL when
+> pointing at the local mock server.
+
+### Option B — Install into an existing Home Assistant
+
+If you already run HA somewhere, the bundled script copies the integration in:
+
+```bash
+# Replace the path with your actual HA config directory (contains configuration.yaml).
+~/nma-home-assistant/scripts/install.sh ~/homeassistant
+
+# HA OS / Supervised over Samba:
+~/nma-home-assistant/scripts/install.sh /Volumes/config
+
+# Linux box where HA Container's /config is bind-mounted:
+~/nma-home-assistant/scripts/install.sh /var/lib/homeassistant
+```
+
+The script verifies the target looks like an HA config directory, then rsyncs
+`custom_components/nma/` into `<config>/custom_components/nma/`. Restart HA
+afterwards (Settings → System → Restart, or `ha core restart` on HA OS).
+
+### Option C — Manual install (no script)
+
+Copy the folder yourself:
+
+```
+custom_components/nma/   →   <ha-config>/custom_components/nma/
+```
+
+Restart Home Assistant.
+
+### Option D — HACS (once this repo is on GitHub)
+
+1. Push this repo to GitHub.
+2. In HA: **HACS → Integrations → ⋮ → Custom repositories**.
+3. Paste the repo URL, category **Integration**.
+4. Install **NMA Mobile Credentials**, restart HA.
+
+The bundled `hacs.json` and `info.md` already declare the metadata HACS needs.
+
+### Option E — Install on a remote HA over SSH
+
+For an HA box you reach over SSH (HA OS with the **SSH & Web Terminal** add-on,
+HA Container on a Linux server, ...) use the bundled remote-install script:
+
+```bash
+# Defaults to remote /config.
+~/nma-home-assistant/scripts/install-remote.sh root@homeassistant.local:22222
+
+# Custom config dir, e.g. on a generic Linux box:
+~/nma-home-assistant/scripts/install-remote.sh user@homeserver ~/homeassistant
+```
+
+The script SSHes in, checks `configuration.yaml` exists at the target, then
+`rsync`s `custom_components/nma/` over (deleting stale files). It prints the
+restart command to run afterwards.
+
+> The `host:port` form (e.g. `root@homeassistant.local:22222`) is converted to
+> `ssh -p 22222` automatically. The HA OS SSH add-on listens on `22222` by
+> default.
+
+### Option F — Tarball drop-in (works everywhere)
+
+If you can't SSH or run scripts, build a tarball and drop it in via Samba,
+Studio Code Server, the File editor add-on, or `scp`:
+
+```bash
+~/nma-home-assistant/scripts/make_release.sh
+# -> dist/nma-0.1.0.tar.gz   (15 KB)
+```
+
+On the HA box, extract straight into `/config/custom_components/`:
+
+```bash
+tar -xzf nma-0.1.0.tar.gz -C /config/custom_components/
+```
+
+The tarball unpacks as a single `nma/` folder, so nothing else in
+`custom_components/` is touched.
+
+---
+
+### Add the integration in the UI
+
+After installing by any method above and restarting HA:
+
+**Settings → Devices & services → Add integration → NMA Mobile Credentials**
+
+You'll be asked for:
+
+| Field          | Notes                                                                |
+|----------------|----------------------------------------------------------------------|
+| Base URL       | Real API: `https://…` from the API owner. Mock: see below.           |
+| Access token   | Bearer token — sent as `Authorization: Bearer <token>`.              |
+| Company ID     | UUID. The flow calls `GET /api/admin/companies/{id}` to validate.    |
+| Verify TLS     | Leave **on** for production. Off only for self-signed dev endpoints. |
+
+The flow rejects invalid UUIDs, malformed URLs, and surfaces `401/403/404`
+from the API as distinct errors.
+
+## Options
+
+After adding the entry, click **Configure**:
+
+| Option              | Default | Notes                                                |
+|---------------------|---------|------------------------------------------------------|
+| `scan_interval`     | 60      | Polling interval in seconds (min 15, max 86400).     |
+| `page_size`         | 100     | Per-page size for `/people` and `/credentials`.      |
+| `fetch_people`      | true    | Disable to skip the full `/people` pagination loop.  |
+| `fetch_credentials` | true    | Same for `/credentials`.                             |
+
+Disabling the two `fetch_*` toggles leaves you with just the Company and
+WebSocket data — useful on huge companies where you only care about the
+connection-alive signals.
+
+## Test against the mock server
+
+The companion repo ships [`examples/demo_mock.py`](../nma-api/examples/demo_mock.py),
+an in-process mock server. The snippet below pins it to port `8765` on **all**
+interfaces (`0.0.0.0`) so Home Assistant can reach it regardless of where HA
+is running:
+
+```bash
+cd ~/nma-api
+.venv/bin/python - <<'PY'
+from http.server import HTTPServer
+from examples.demo_mock import _Handler
+HTTPServer(("0.0.0.0", 8765), _Handler).serve_forever()
+PY
+```
+
+You should see `-> server received GET /api/admin/companies/...` lines whenever
+HA polls.
+
+In Home Assistant, add the integration with **one** of these Base URLs,
+depending on where HA itself runs:
+
+| HA runs on …                          | Base URL                                            |
+|---------------------------------------|-----------------------------------------------------|
+| The same Mac, native (HA OS in a VM)  | `http://<your-mac-LAN-IP>:8765` (e.g. `http://192.168.1.42:8765`) |
+| The same Mac, in Docker               | `http://host.docker.internal:8765`                  |
+| A separate device (Pi, NUC, …)        | `http://<your-mac-LAN-IP>:8765`                     |
+| The same Python venv as the mock      | `http://127.0.0.1:8765`                             |
+
+Find your Mac's LAN IP with `ipconfig getifaddr en0` (Wi-Fi) or `en1`
+(Ethernet/Thunderbolt).
+
+Other config-flow values for the mock:
+
+- **Token:** anything (the mock ignores it).
+- **Company ID:** `11111111-1111-1111-1111-111111111111` (hard-coded in the mock).
+- **Verify TLS:** off.
+
+All ~40 sensors should appear under the `Acme` device, with
+`binary_sensor.acme_api_reachable` and `binary_sensor.acme_acs_websocket`
+both `on`.
+
+## Test against the real backend
+
+The `nma-api` repo's [`openapi.yaml`](../nma-api/openapi.yaml) still ships
+**placeholder server URLs** (`https://dev.api.example.com`,
+`https://api.example.com`). Replace those with the real environment URL when
+the API owner gives it to you, then in the HA config flow use:
+
+- **Base URL:** the real `https://…` URL, no trailing slash.
+- **Token:** a valid Bearer access token.
+- **Company ID:** an existing company UUID at that endpoint.
+- **Verify TLS:** leave **on** unless you're pointing at a self-signed staging
+  endpoint.
+
+The flow calls `GET /api/admin/companies/{id}` to validate before saving and
+maps `401/403` → *invalid auth* and `404` → *company not found*.
+
+## Service: `nma.refresh`
+
+```yaml
+service: nma.refresh
+# Optionally restrict to one entry; otherwise refreshes all NMA entries
+data:
+  entry_id: "01HZ1234567890ABCDEF"
+```
+
+## Architecture
+
+```
+┌─────────────────────────┐
+│ Home Assistant entity   │  sensor.* / binary_sensor.*
+│   (CoordinatorEntity)   │
+└─────────┬───────────────┘
+          │ reads
+┌─────────▼───────────────┐
+│ NmaCoordinator          │  DataUpdateCoordinator
+│  (scan_interval, ...)   │
+└─────────┬───────────────┘
+          │ await hass.async_add_executor_job(api.fetch_all)
+┌─────────▼───────────────┐
+│ NmaApi (sync)           │  thin wrapper, paginates /people + /credentials
+└─────────┬───────────────┘
+          │ requests.Session (Bearer token)
+┌─────────▼───────────────┐
+│ NMA API                 │
+└─────────────────────────┘
+```
+
+## Caveats
+
+- The vendored `nma_api` package requires **Pydantic v2.5+**. HA 2024.6+
+  ships compatible versions.
+- The integration runs the sync `requests`-based client in HA's thread
+  executor. For large companies, consider lowering the scan interval and
+  raising `page_size`.
+- Per-Person/Per-Credential entities are *disabled by default* — they're
+  intended for spot-checking the API, not as a production telemetry firehose.
+
+## License
+
+[MIT](LICENSE) © Bart Vervueren.

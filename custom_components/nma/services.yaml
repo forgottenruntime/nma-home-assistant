@@ -1,0 +1,13 @@
+refresh:
+  name: Refresh
+  description: >-
+    Force-refresh data for one or all configured NMA entries.
+  fields:
+    entry_id:
+      name: Entry ID
+      description: >-
+        Optional NMA config entry ID. If omitted, every NMA entry is refreshed.
+      example: 01HZ1234567890ABCDEF
+      required: false
+      selector:
+        text:

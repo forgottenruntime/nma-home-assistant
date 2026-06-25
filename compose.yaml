@@ -1,0 +1,37 @@
+# Docker Compose recipe for testing the NMA Mobile Credentials integration
+# in a throwaway Home Assistant container.
+#
+# Usage:
+#   cd ~/nma-home-assistant
+#   docker compose up -d
+#   open http://localhost:8123
+#
+# To wipe and start over:
+#   docker compose down -v
+#
+# The integration code is bind-mounted read-only, so editing files under
+# custom_components/nma/ and running `docker compose restart` is enough to
+# pick up changes — no rebuild needed.
+
+services:
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:stable
+    container_name: nma-ha-test
+    restart: unless-stopped
+    network_mode: host  # easiest way for HA to reach the mock server on 127.0.0.1
+    volumes:
+      - ha_config:/config
+      # The integration itself — read-only so HA can't mutate your repo.
+      - ./custom_components/nma:/config/custom_components/nma:ro
+    environment:
+      - TZ=Europe/Brussels
+    # On macOS, network_mode: host is not supported by Docker Desktop the same
+    # way as on Linux. If you're on macOS and `http://127.0.0.1:8123` does not
+    # work, comment out `network_mode: host` and uncomment the `ports:` block
+    # below, then use `http://host.docker.internal:8765` as the Base URL inside
+    # the HA config flow when pointing at the mock server.
+    # ports:
+    #   - "8123:8123"
+
+volumes:
+  ha_config:

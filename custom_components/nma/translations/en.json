@@ -1,0 +1,53 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "NMA Mobile Credentials",
+                "description": "Connect to the NMA API. Use the development URL while testing.",
+                "data": {
+                    "base_url": "Base URL (e.g. https://dev.api.example.com)",
+                    "token": "Access token (Bearer)",
+                    "company_id": "Company ID (UUID)",
+                    "verify_ssl": "Verify TLS certificate"
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "Failed to connect to the NMA API.",
+            "invalid_auth": "The access token was rejected (401/403).",
+            "company_not_found": "No company with that ID exists at this endpoint (404).",
+            "invalid_url": "Base URL must start with http:// or https://.",
+            "invalid_company_id": "Company ID must be a valid UUID.",
+            "unknown": "An unexpected error occurred."
+        },
+        "abort": {
+            "already_configured": "This (base URL, company ID) is already configured."
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "NMA options",
+                "data": {
+                    "scan_interval": "Polling interval (seconds)",
+                    "page_size": "Page size for /people and /credentials",
+                    "fetch_people": "Fetch full people list",
+                    "fetch_credentials": "Fetch full credentials list"
+                },
+                "description": "Disable people/credentials fetching if you only care about company status and the ACS WebSocket."
+            }
+        }
+    },
+    "services": {
+        "refresh": {
+            "name": "Refresh NMA data",
+            "description": "Force-refresh one or all NMA config entries.",
+            "fields": {
+                "entry_id": {
+                    "name": "Entry ID",
+                    "description": "Optional NMA config entry ID. If omitted, every NMA entry is refreshed."
+                }
+            }
+        }
+    }
+}
