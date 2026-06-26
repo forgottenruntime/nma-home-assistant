@@ -120,6 +120,8 @@ class NmaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         errors["base"] = "invalid_auth"
                     elif err.status_code == 404:
                         errors[CONF_COMPANY_ID] = "company_not_found"
+                    elif err.status_code in (502, 503, 504):
+                        errors["base"] = "server_unavailable"
                     else:
                         errors["base"] = "cannot_connect"
                 except Exception:  # noqa: BLE001

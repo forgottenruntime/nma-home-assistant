@@ -48,11 +48,24 @@ class NmaApiError(Exception):
     @classmethod
     def from_response(cls, response: "requests.Response") -> "NmaApiError":
         error: Optional[Error] = None
-        try:
-            error = Error.model_validate(response.json())
-        except Exception:  # noqa: BLE001 - body may not be JSON / Error-shaped
-            error = None
-        message = error.message if error else (response.text or "")[:500]
+        content_type = response.headers.get("Content-Type", "").lower()
+        if "application/json" in content_type:
+            try:
+                error = Error.model_validate(response.json())
+            except Exception:  # noqa: BLE001 - body may not be Error-shaped
+                error = None
+        if error is not None:
+            message: Optional[str] = error.message
+        else:
+            # Non-JSON body (e.g. an HTML 502 page from a reverse proxy). Do
+            # not dump the whole page into logs/UI; use the HTTP reason or a
+            # short collapsed snippet instead.
+            reason = (response.reason or "").strip()
+            if reason:
+                message = reason
+            else:
+                snippet = " ".join((response.text or "").split())[:120]
+                message = snippet or f"HTTP {response.status_code}"
         return cls(response.status_code, error, message)
 
 
