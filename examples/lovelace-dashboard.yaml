@@ -65,12 +65,15 @@ views:
 
               ') }}{% else %}## ✅ NMA — all systems OK
               Connectivity up · no blocked or failed credentials or people.{% endif %}
-          # Toggle to mask first/last names to initials across the dashboard.
+          # Click to toggle name masking on/off across the dashboard.
           # Requires the input_boolean.nma_anonymise helper (examples/helpers.yaml).
-          - type: tile
+          - type: button
             entity: input_boolean.nma_anonymise
             name: Anonymise names
             icon: mdi:incognito
+            show_state: true
+            tap_action:
+              action: toggle
 
       # ------------------------------------------------------------------ #
       # Company overview
@@ -300,12 +303,15 @@ views:
               - type: section
                 label: By type
               # credentials_type_<slugified person-type name>; adjust to match.
+              # Only types that exist in your tenant get a sensor. This tenant
+              # has Employees and Contractors but no Visitors, so the Visitor
+              # line is commented out — uncomment it if/when you have visitors.
               - entity: sensor.red_bull_sandbox_credentials_employee
                 name: Employee
               - entity: sensor.red_bull_sandbox_credentials_contractor
                 name: Contractor
-              - entity: sensor.red_bull_sandbox_credentials_visitor
-                name: Visitor
+              # - entity: sensor.red_bull_sandbox_credentials_visitor
+              #   name: Visitor
               - type: section
                 label: By platform
               - entity: sensor.red_bull_sandbox_credentials_on_apple
@@ -358,13 +364,15 @@ views:
                 label: By type
               # Per-person-type sensors are created from the data; the entity
               # id is people_type_<slugified type name>. Adjust to match yours
-              # (Developer Tools → States → type "people_type").
+              # (Developer Tools → States → type "people_type"). Only types that
+              # exist in your tenant get a sensor — this tenant has no Visitors,
+              # so that line is commented out.
               - entity: sensor.red_bull_sandbox_people_employee
                 name: Employee
               - entity: sensor.red_bull_sandbox_people_contractor
                 name: Contractor
-              - entity: sensor.red_bull_sandbox_people_visitor
-                name: Visitor
+              # - entity: sensor.red_bull_sandbox_people_visitor
+              #   name: Visitor
               - type: section
                 label: By number of devices
               - entity: sensor.red_bull_sandbox_people_with_0_credentials
