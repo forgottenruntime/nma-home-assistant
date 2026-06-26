@@ -22,6 +22,7 @@ from .const import (
     DEFAULT_PAGE_SIZE,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
+    MAX_PAGE_SIZE,
     OPT_FETCH_CREDENTIALS,
     OPT_FETCH_PEOPLE,
     OPT_PAGE_SIZE,
@@ -62,7 +63,7 @@ def _options_schema(entry: config_entries.ConfigEntry) -> vol.Schema:
             vol.Optional(
                 OPT_PAGE_SIZE,
                 default=o.get(OPT_PAGE_SIZE, DEFAULT_PAGE_SIZE),
-            ): vol.All(int, vol.Range(min=1, max=500)),
+            ): vol.All(int, vol.Range(min=1, max=MAX_PAGE_SIZE)),
             vol.Optional(
                 OPT_FETCH_PEOPLE,
                 default=o.get(OPT_FETCH_PEOPLE, DEFAULT_FETCH_PEOPLE),
@@ -120,6 +121,8 @@ class NmaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         errors["base"] = "invalid_auth"
                     elif err.status_code == 404:
                         errors[CONF_COMPANY_ID] = "company_not_found"
+                    elif err.status_code == 429:
+                        errors["base"] = "rate_limited"
                     elif err.status_code in (502, 503, 504):
                         errors["base"] = "server_unavailable"
                     else:

@@ -3,15 +3,65 @@
 The wire client is synchronous (uses ``requests``). We expose a small set of
 helpers that paginate fully and are intended to be invoked via
 ``hass.async_add_executor_job``.
+
+All HTTP calls are routed through a sliding-window rate limiter so we stay
+under the server's documented limit of 30 requests/minute (across all
+endpoints and environments).
 """
 from __future__ import annotations
 
+import logging
+import threading
+import time
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import Callable, List, Optional, TypeVar
 
+from .const import RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_PERIOD_S
 from .nma_api import NmaApiClient, NmaApiError
 from .nma_api.models import Company, Credential, Person
+
+_LOGGER = logging.getLogger(__name__)
+
+T = TypeVar("T")
+
+
+class _RateLimiter:
+    """Thread-safe sliding-window rate limiter.
+
+    Allows at most ``max_requests`` calls within any ``period`` seconds. When
+    the window is full, :meth:`acquire` blocks (``time.sleep``) until the
+    oldest call ages out. Safe to call from an executor thread — never from the
+    event loop.
+    """
+
+    def __init__(self, max_requests: int, period: float) -> None:
+        self._max = max(1, max_requests)
+        self._period = period
+        self._calls: "deque[float]" = deque()
+        self._lock = threading.Lock()
+
+    def acquire(self) -> None:
+        with self._lock:
+            now = time.monotonic()
+            self._evict(now)
+            if len(self._calls) >= self._max:
+                sleep_for = self._period - (now - self._calls[0])
+                if sleep_for > 0:
+                    _LOGGER.debug(
+                        "NMA rate limit reached (%d/%ds); sleeping %.2fs",
+                        self._max,
+                        int(self._period),
+                        sleep_for,
+                    )
+                    time.sleep(sleep_for)
+                self._evict(time.monotonic())
+            self._calls.append(time.monotonic())
+
+    def _evict(self, now: float) -> None:
+        while self._calls and now - self._calls[0] >= self._period:
+            self._calls.popleft()
 
 
 @dataclass(slots=True)
@@ -36,7 +86,7 @@ class NmaApi:
         token: Optional[str],
         company_id: str,
         *,
-        page_size: int = 100,
+        page_size: int = 50,
         timeout: float = 30.0,
         verify_ssl: bool = True,
     ) -> None:
@@ -45,10 +95,16 @@ class NmaApi:
         self._client._session.verify = verify_ssl  # noqa: SLF001
         self.company_id = company_id
         self.page_size = page_size
+        self._limiter = _RateLimiter(RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_PERIOD_S)
+
+    def _throttled(self, fn: Callable[..., T], *args, **kwargs) -> T:
+        """Run a client call after waiting for a rate-limit slot."""
+        self._limiter.acquire()
+        return fn(*args, **kwargs)
 
     # -- single fetches ---------------------------------------------------- #
     def fetch_company(self) -> Company:
-        return self._client.get_company(self.company_id)
+        return self._throttled(self._client.get_company, self.company_id)
 
     def fetch_all(
         self,
@@ -58,7 +114,7 @@ class NmaApi:
     ) -> NmaSnapshot:
         """Fetch company + (optionally) all people and credentials."""
         start = datetime.now(timezone.utc)
-        company = self._client.get_company(self.company_id)
+        company = self._throttled(self._client.get_company, self.company_id)
         people: List[Person] = []
         people_total = 0
         credentials: List[Credential] = []
@@ -86,8 +142,11 @@ class NmaApi:
         page = 0
         total = 0
         while True:
-            res = self._client.get_people(
-                self.company_id, page=page, size=self.page_size
+            res = self._throttled(
+                self._client.get_people,
+                self.company_id,
+                page=page,
+                size=self.page_size,
             )
             items.extend(res.items)
             total = res.page_info.total_elements
@@ -101,8 +160,11 @@ class NmaApi:
         page = 0
         total = 0
         while True:
-            res = self._client.get_credentials(
-                self.company_id, page=page, size=self.page_size
+            res = self._throttled(
+                self._client.get_credentials,
+                self.company_id,
+                page=page,
+                size=self.page_size,
             )
             items.extend(res.items)
             total = res.page_info.total_elements

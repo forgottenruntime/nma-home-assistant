@@ -186,13 +186,32 @@ After adding the entry, click **Configure**:
 | Option              | Default | Notes                                                |
 |---------------------|---------|------------------------------------------------------|
 | `scan_interval`     | 60      | Polling interval in seconds (min 15, max 86400).     |
-| `page_size`         | 100     | Per-page size for `/people` and `/credentials`.      |
+| `page_size`         | 50      | Per-page size for `/people` and `/credentials` (max 50, the API's recommendation). |
 | `fetch_people`      | true    | Disable to skip the full `/people` pagination loop.  |
 | `fetch_credentials` | true    | Same for `/credentials`.                             |
 
 Disabling the two `fetch_*` toggles leaves you with just the Company and
 WebSocket data — useful on huge companies where you only care about the
 connection-alive signals.
+
+## Rate limiting
+
+The API enforces **30 requests/minute across all endpoints and environments**.
+A single poll makes `1 + ceil(people/page_size) + ceil(credentials/page_size)`
+requests, so a large company can exceed that in one poll.
+
+The integration protects you automatically:
+
+- A built-in **sliding-window limiter caps outgoing requests at 30/minute** and
+  transparently waits (in a background thread) when the window is full — so a
+  big paginated fetch is spread out rather than rejected.
+- `page_size` is capped at **50** (the API's recommended maximum).
+- If the server still returns **429**, it's surfaced as a clean
+  *"Rate limit hit"* message and the next poll retries.
+
+If you run **multiple config entries that share one token**, they share the real
+30/min budget. In that case raise `scan_interval`, disable `fetch_people` /
+`fetch_credentials` where you don't need them, or stagger the entries.
 
 ## Test against the mock server
 

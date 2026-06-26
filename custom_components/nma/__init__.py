@@ -22,6 +22,7 @@ from .const import (
     DEFAULT_TIMEOUT,
     DOMAIN,
     MANUFACTURER,
+    MAX_PAGE_SIZE,
     MODEL,
     OPT_PAGE_SIZE,
     PLATFORMS,
@@ -71,6 +72,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
 
     page_size = int(entry.options.get(OPT_PAGE_SIZE, DEFAULT_PAGE_SIZE))
+    # Clamp to the API's recommended maximum (handles legacy entries that
+    # stored a larger value before this cap existed).
+    page_size = max(1, min(page_size, MAX_PAGE_SIZE))
     api = NmaApi(
         base_url=entry.data[CONF_BASE_URL],
         token=entry.data.get(CONF_TOKEN),

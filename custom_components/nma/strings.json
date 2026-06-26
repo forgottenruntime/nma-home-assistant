@@ -16,6 +16,7 @@
             "cannot_connect": "Failed to connect to the NMA API.",
             "invalid_auth": "The access token was rejected (401/403).",
             "company_not_found": "No company with that ID exists at this endpoint (404).",
+            "rate_limited": "Rate limit hit (429). The API allows 30 requests/minute across all endpoints — wait a minute and try again.",
             "server_unavailable": "The API gateway returned 502/503/504. The backend is unreachable or temporarily down — check the URL and that the API is up.",
             "invalid_url": "Base URL must start with http:// or https://.",
             "invalid_company_id": "Company ID must be a valid UUID.",
