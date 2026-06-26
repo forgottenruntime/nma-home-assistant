@@ -24,7 +24,10 @@ Home Assistant entities. Built primarily as a **test/debug harness** for the API
   most recent poll succeeded; attributes expose base URL, polling interval,
   last fetch duration, and last error message.
 - **ACS WebSocket** binary sensor (`device_class: connectivity`) +
-  `since` timestamp sensor + pending-message-count sensor.
+  `since` timestamp sensor + pending-message-count sensor, plus **outage
+  tracking**: `*_acs_websocket_outages` / `*_api_outages` counters (survive
+  restarts; HA statistics give outages-per-day) and `*_acs_websocket_offline_since`
+  (live "offline for N minutes").
 - Company info sensors: name, status, type, ACS (`ATWORK`/`AEOS`),
   UAP migration status, enabled platforms, max-people, max-credentials,
   use-app-key, DF name, TCI value, tenant ID.

@@ -6,11 +6,12 @@ sets (disabled by default).
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 from typing import Any, Callable, Dict, List, Optional, Set
 
 from homeassistant.components.sensor import (
+    RestoreSensor,
     SensorDeviceClass,
     SensorEntity,
     SensorStateClass,
@@ -71,6 +72,9 @@ async def async_setup_entry(
         TotalCredentialsSensor(coordinator),
         LastUpdateSensor(coordinator),
         LastUpdateDurationSensor(coordinator),
+        AcsWsOutagesSensor(coordinator),
+        AcsWsOfflineSinceSensor(coordinator),
+        ApiOutagesSensor(coordinator),
     ]
 
     for status in PersonStatus:
@@ -726,6 +730,127 @@ class LastUpdateDurationSensor(_NmaBaseSensor):
     def native_value(self) -> Optional[float]:
         d = self.coordinator.data
         return round(d.duration_s, 3) if d else None
+
+
+# --------------------------------------------------------------------------- #
+# Connectivity outage tracking (derived by observing transitions across polls)
+# --------------------------------------------------------------------------- #
+class _OutageCounterSensor(CoordinatorEntity[NmaCoordinator], RestoreSensor):
+    """Counts how many times a connectivity signal went up -> down.
+
+    Restored across restarts (``RestoreSensor``) and exposed as a
+    ``total_increasing`` measurement, so Home Assistant long-term statistics can
+    derive outages-per-day / per-week. Answers the client's
+    "how many times offline over time".
+    """
+
+    _attr_has_entity_name = True
+    _attr_state_class = SensorStateClass.TOTAL_INCREASING
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_native_unit_of_measurement = "outages"
+
+    def __init__(
+        self, coordinator: NmaCoordinator, key: str, name: str, icon: str
+    ) -> None:
+        super().__init__(coordinator)
+        self._key = key
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_{key}"
+        self._attr_name = name
+        self._attr_icon = icon
+        self._attr_device_info = _company_device_info(coordinator)
+        self._count = 0
+        self._prev_up: Optional[bool] = None
+
+    def _is_up(self) -> Optional[bool]:
+        raise NotImplementedError
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        last = await self.async_get_last_sensor_data()
+        if last is not None and last.native_value is not None:
+            try:
+                self._count = int(last.native_value)
+            except (TypeError, ValueError):
+                self._count = 0
+        # Baseline so a signal that is already down at startup is not counted.
+        self._prev_up = self._is_up()
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        up = self._is_up()
+        if up is False and self._prev_up is True:
+            self._count += 1
+        if up is not None:
+            self._prev_up = up
+        super()._handle_coordinator_update()
+
+    @property
+    def native_value(self) -> int:
+        return self._count
+
+
+class AcsWsOutagesSensor(_OutageCounterSensor):
+    def __init__(self, coordinator: NmaCoordinator) -> None:
+        super().__init__(
+            coordinator,
+            "acs_ws_outages",
+            "ACS WebSocket outages",
+            "mdi:lan-disconnect",
+        )
+
+    def _is_up(self) -> Optional[bool]:
+        c = self.coordinator.data.company if self.coordinator.data else None
+        return c.acs_web_socket.up if c else None
+
+
+class ApiOutagesSensor(_OutageCounterSensor):
+    def __init__(self, coordinator: NmaCoordinator) -> None:
+        super().__init__(
+            coordinator,
+            "api_outages",
+            "API outages",
+            "mdi:cloud-alert",
+        )
+
+    def _is_up(self) -> Optional[bool]:
+        return bool(self.coordinator.last_update_success)
+
+
+class AcsWsOfflineSinceSensor(CoordinatorEntity[NmaCoordinator], SensorEntity):
+    """Timestamp the ACS WebSocket was first observed down (``None`` when up).
+
+    Lets the UI show a live "offline for N minutes" — answering the client's
+    "how long offline since it is up". Resets if HA restarts while offline.
+    """
+
+    _attr_has_entity_name = True
+    _attr_name = "ACS WebSocket offline since"
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_icon = "mdi:clock-alert"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator: NmaCoordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_acs_ws_offline_since"
+        self._attr_device_info = _company_device_info(coordinator)
+        self._offline_since: Optional[datetime] = None
+
+    def _is_up(self) -> Optional[bool]:
+        c = self.coordinator.data.company if self.coordinator.data else None
+        return c.acs_web_socket.up if c else None
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        up = self._is_up()
+        if up is True:
+            self._offline_since = None
+        elif up is False and self._offline_since is None:
+            self._offline_since = datetime.now(timezone.utc)
+        super()._handle_coordinator_update()
+
+    @property
+    def native_value(self) -> Optional[datetime]:
+        return self._offline_since
 
 
 # --------------------------------------------------------------------------- #

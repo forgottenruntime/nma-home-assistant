@@ -152,6 +152,15 @@ views:
             entity: sensor.red_bull_sandbox_acs_websocket_up_since
             name: WebSocket up since
           - type: tile
+            entity: sensor.red_bull_sandbox_acs_websocket_offline_since
+            name: WebSocket offline since
+          - type: tile
+            entity: sensor.red_bull_sandbox_acs_websocket_outages
+            name: WebSocket outages
+          - type: tile
+            entity: sensor.red_bull_sandbox_api_outages
+            name: API outages
+          - type: tile
             entity: sensor.red_bull_sandbox_last_successful_update
             name: Last update
           - type: tile
@@ -538,6 +547,17 @@ views:
                 name: Blocked by ACS
               - entity: sensor.red_bull_sandbox_people_removed_by_acs
                 name: Removed by ACS
+          - type: statistics-graph
+            title: Connectivity outages (30 days)
+            period: day
+            days_to_show: 30
+            stat_types:
+              - state
+            entities:
+              - entity: sensor.red_bull_sandbox_acs_websocket_outages
+                name: ACS WebSocket
+              - entity: sensor.red_bull_sandbox_api_outages
+                name: API
 
       # ------------------------------------------------------------------ #
       # Diagnostics

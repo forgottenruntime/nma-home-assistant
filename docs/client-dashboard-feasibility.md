@@ -25,6 +25,28 @@ today, and what is **blocked by the NMA API**.
 
 ---
 
+## Progress scoreboard
+
+A rollup of every requirement assessed in this document, to track progress over
+time. "Buildable" = ✅ achievable in HA today (most already shipped in the
+integration); "Partial" = 🟡 works with a caveat; "Blocked" = ❌ needs an API
+change. Update the *Done* column as items ship and re-run the count.
+
+| Status | Count | Done (shipped) |
+| --- | --- | --- |
+| ✅ Buildable | 12 | 12 — credentials by state; people/credentials totals; by person type; by device-count; device-type labels; recent + long-term trend graphs; time-range filtering; latency-threshold + connectivity alerts; email/incident notify; authenticated access; WebSocket offline-since; WebSocket/API outage counters |
+| 🟡 Partial | 11 | — connectivity light, "up since", API-reachable watchdog, round-trip latency, healthy/offline history, users customize widgets, admin-vs-user roles, KPI via HA API, provisioning backlog number, user↔credential↔device-type, forward-only evolution |
+| ❌ Blocked (needs API) | 18 | — SaaS/component/Apple/Google health, server-side latency, uptime %, incidents, planned maintenance, WebSocket latency, provisioning queue/events/stats, errors-by-type, iOS-version buckets/model/serial, status-change timing, badge last-used/usage-count, historical backfill, 30 s refresh at scale |
+
+**Headline:** of the client's requirements, **everything buildable without API
+changes is now implemented**. The remaining work is split between *partial*
+(works but coarse) and *blocked* (genuinely needs the supplier — see
+[`api-feature-requests.md`](api-feature-requests.md)). The single hard blocker is
+the **30-second refresh at scale** (needs a summary endpoint, delta sync, or
+webhooks).
+
+---
+
 ## 1. Health indicators
 
 | Requirement | HA | Notes | API ref |
@@ -113,8 +135,8 @@ Additional review items raised after the mock-ups.
 | Apple services connectivity + uptime | ❌ | No Apple-side health. | 2.4, 5.1 |
 | Google services connectivity + uptime | ❌ | No Google-side health. | 2.4, 5.1 |
 | WebSocket response time | ❌ | `acsWebSocket` has no latency field. | 5.4 |
-| WebSocket how long offline since up | 🟡 | HA can derive from its own history of the `up` flag. | (5.4) |
-| WebSocket times offline over time | 🟡 | Same — HA counts state changes from history. | (5.4) |
+| WebSocket how long offline since up | ✅ | Implemented (v0.1.8): `*_acs_websocket_offline_since` timestamp sensor (live "offline for N min"). | — |
+| WebSocket times offline over time | ✅ | Implemented (v0.1.8): `*_acs_websocket_outages` counter (total_increasing) → statistics give outages/day. Also `*_api_outages`. | — |
 | Provisioning live queue | 🟡 | Only `pendingMessagesCount` (a single backlog number); no queue detail. | 5.5 |
 | Provisioning events & logs | ❌ | No event/log endpoint. | 5.5, 2.5 |
 | Provisioning counts today / month / periods | ❌ | No timestamped provisioning data to aggregate. | 5.5 |
@@ -137,6 +159,8 @@ provisioning queue/logs/throughput, badge usage, and true historical comparison
 ## What we can deliver now (no API changes)
 
 - AEOS link status + "up since"; API-reachable watchdog; round-trip latency.
+- **WebSocket / API outage tracking**: outage counters (→ outages-per-day via
+  statistics) and a live "offline since" timestamp.
 - Latency-threshold and connectivity alerts; email/mobile/incident notifications.
 - Credentials by state; people/credentials totals; device-type breakdown
   (iPhone/Apple Watch/…); users by credential-count (0/1/2/3+); users and
