@@ -224,6 +224,9 @@ readable name, and uses dense section placement so the columns pack evenly.
 
 Highlights:
 
+- A **System status** header chip (green "all systems OK" or red "attention
+  needed", listing the active problems) computed from connectivity + every
+  problem counter — no HACS dependency, just a templated markdown card.
 - **Usage gauges** for credentials and people (value vs limit, with green /
   amber / red bands) instead of a plain text total.
 - An **Alerts** card listing the six example automations with their

@@ -19,6 +19,32 @@ views:
     dense_section_placement: true
     sections:
       # ------------------------------------------------------------------ #
+      # System status — at-a-glance health chip
+      #   Green when connectivity is up and no problem counters are set;
+      #   red and lists the problems otherwise. No HACS deps (markdown card).
+      # ------------------------------------------------------------------ #
+      - type: grid
+        cards:
+          - type: markdown
+            content: |
+              {% set p = namespace(items=[]) %}
+              {% if is_state('binary_sensor.red_bull_sandbox_api_reachable','off') %}{% set p.items = p.items + ['API unreachable'] %}{% endif %}
+              {% if is_state('binary_sensor.red_bull_sandbox_acs_websocket','off') %}{% set p.items = p.items + ['ACS WebSocket down'] %}{% endif %}
+              {% set v = states('sensor.red_bull_sandbox_credentials_blocked_by_platform')|int(0) + states('sensor.red_bull_sandbox_credentials_blocked_by_acs')|int(0) + states('sensor.red_bull_sandbox_credentials_person_blocked_by_acs')|int(0) %}
+              {% if v > 0 %}{% set p.items = p.items + [v ~ ' credential(s) blocked'] %}{% endif %}
+              {% set v = states('sensor.red_bull_sandbox_credentials_uap_migration_failed')|int(0) %}
+              {% if v > 0 %}{% set p.items = p.items + [v ~ ' credential migration failure(s)'] %}{% endif %}
+              {% set v = states('sensor.red_bull_sandbox_people_blocked_by_acs')|int(0) + states('sensor.red_bull_sandbox_people_removed_by_acs')|int(0) %}
+              {% if v > 0 %}{% set p.items = p.items + [v ~ ' person/people blocked or removed'] %}{% endif %}
+              {% set v = states('sensor.red_bull_sandbox_people_uap_migration_failed')|int(0) %}
+              {% if v > 0 %}{% set p.items = p.items + [v ~ ' person migration failure(s)'] %}{% endif %}
+              {% set v = states('sensor.red_bull_sandbox_acs_websocket_pending_messages')|int(0) %}
+              {% if v > 50 %}{% set p.items = p.items + [v ~ ' pending ACS messages'] %}{% endif %}
+              {% if p.items %}## ⛔ NMA — attention needed
+              {{ p.items | join(' · ') }}{% else %}## ✅ NMA — all systems OK
+              Connectivity up · no blocked or failed credentials or people.{% endif %}
+
+      # ------------------------------------------------------------------ #
       # Company overview
       # ------------------------------------------------------------------ #
       - type: grid
