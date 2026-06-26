@@ -179,6 +179,75 @@ views:
                 secondary_info: last-triggered
 
       # ------------------------------------------------------------------ #
+      # Blocked / flagged — only shown when something is actually wrong.
+      # The whole section hides (section-level `visibility`) unless at least
+      # one blocked / removed / migration-failed counter is above zero.
+      # Names come from the `members` attribute (NMA integration v0.1.5+).
+      # ------------------------------------------------------------------ #
+      - type: grid
+        visibility:
+          - condition: or
+            conditions:
+              - condition: numeric_state
+                entity: sensor.red_bull_sandbox_people_blocked_by_acs
+                above: 0
+              - condition: numeric_state
+                entity: sensor.red_bull_sandbox_people_removed_by_acs
+                above: 0
+              - condition: numeric_state
+                entity: sensor.red_bull_sandbox_credentials_blocked_by_platform
+                above: 0
+              - condition: numeric_state
+                entity: sensor.red_bull_sandbox_credentials_blocked_by_acs
+                above: 0
+              - condition: numeric_state
+                entity: sensor.red_bull_sandbox_credentials_person_blocked_by_acs
+                above: 0
+              - condition: numeric_state
+                entity: sensor.red_bull_sandbox_people_uap_migration_failed
+                above: 0
+              - condition: numeric_state
+                entity: sensor.red_bull_sandbox_credentials_uap_migration_failed
+                above: 0
+        cards:
+          - type: heading
+            heading: Blocked / flagged
+            icon: mdi:account-alert
+          - type: markdown
+            content: |
+              {% macro people(entities) -%}
+              {%- set ns = namespace(rows=[]) -%}
+              {%- for e in entities -%}
+                {%- for m in (state_attr(e, 'members') or []) -%}
+                  {%- set ns.rows = ns.rows + ['- **' ~ m.name ~ '**' ~ (' <' ~ m.email ~ '>' if m.email else '')] -%}
+                {%- endfor -%}
+              {%- endfor -%}
+              {{- ns.rows | unique | join('\n') -}}
+              {%- endmacro -%}
+              {% macro creds(entities) -%}
+              {%- set ns = namespace(rows=[]) -%}
+              {%- for e in entities -%}
+                {%- for m in (state_attr(e, 'members') or []) -%}
+                  {%- set ns.rows = ns.rows + ['- #' ~ m.number ~ ' — ' ~ m.person] -%}
+                {%- endfor -%}
+              {%- endfor -%}
+              {{- ns.rows | unique | join('\n') -}}
+              {%- endmacro -%}
+              {% set pb = people(['sensor.red_bull_sandbox_people_blocked_by_acs','sensor.red_bull_sandbox_people_removed_by_acs']) | trim %}
+              {% set pm = people(['sensor.red_bull_sandbox_people_uap_migration_failed']) | trim %}
+              {% set cb = creds(['sensor.red_bull_sandbox_credentials_blocked_by_platform','sensor.red_bull_sandbox_credentials_blocked_by_acs','sensor.red_bull_sandbox_credentials_person_blocked_by_acs']) | trim %}
+              {% set cm = creds(['sensor.red_bull_sandbox_credentials_uap_migration_failed']) | trim %}
+              {% if pb %}**People blocked / removed**
+              {{ pb }}
+              {% endif %}{% if pm %}**People — migration failed**
+              {{ pm }}
+              {% endif %}{% if cb %}**Credentials blocked**
+              {{ cb }}
+              {% endif %}{% if cm %}**Credentials — migration failed**
+              {{ cm }}
+              {% endif %}
+
+      # ------------------------------------------------------------------ #
       # Credentials breakdown
       # ------------------------------------------------------------------ #
       - type: grid

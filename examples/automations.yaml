@@ -40,17 +40,16 @@
         notification_id: nma_credentials_blocked
         title: "NMA: credentials blocked"
         message: >-
-          Blocked credentials detected —
-          by platform: {{ states('sensor.red_bull_sandbox_credentials_blocked_by_platform') }},
-          by ACS: {{ states('sensor.red_bull_sandbox_credentials_blocked_by_acs') }},
-          person blocked by ACS: {{ states('sensor.red_bull_sandbox_credentials_person_blocked_by_acs') }}.
+          Blocked credentials —
+          platform: {{ states('sensor.red_bull_sandbox_credentials_blocked_by_platform') }},
+          ACS: {{ states('sensor.red_bull_sandbox_credentials_blocked_by_acs') }},
+          person: {{ states('sensor.red_bull_sandbox_credentials_person_blocked_by_acs') }}.
+          Who: {{ ((state_attr('sensor.red_bull_sandbox_credentials_blocked_by_platform','members') or []) + (state_attr('sensor.red_bull_sandbox_credentials_blocked_by_acs','members') or []) + (state_attr('sensor.red_bull_sandbox_credentials_person_blocked_by_acs','members') or [])) | map(attribute='person') | unique | list | join(', ') }}.
     - action: notify.mobile_app_bart_iphone15
       data:
         title: "NMA: credentials blocked"
         message: >-
-          Blocked — platform {{ states('sensor.red_bull_sandbox_credentials_blocked_by_platform') }},
-          ACS {{ states('sensor.red_bull_sandbox_credentials_blocked_by_acs') }},
-          person {{ states('sensor.red_bull_sandbox_credentials_person_blocked_by_acs') }}.
+          Blocked credentials for: {{ ((state_attr('sensor.red_bull_sandbox_credentials_blocked_by_platform','members') or []) + (state_attr('sensor.red_bull_sandbox_credentials_blocked_by_acs','members') or []) + (state_attr('sensor.red_bull_sandbox_credentials_person_blocked_by_acs','members') or [])) | map(attribute='person') | unique | list | join(', ') }}.
 
 # --------------------------------------------------------------------------- #
 # 2. UAP migration failures (credentials or people)
@@ -71,15 +70,15 @@
         notification_id: nma_migration_failed
         title: "NMA: UAP migration failed"
         message: >-
-          Migration failures —
-          credentials: {{ states('sensor.red_bull_sandbox_credentials_uap_migration_failed') }},
-          people: {{ states('sensor.red_bull_sandbox_people_uap_migration_failed') }}.
+          Migration failed.
+          Credentials: {{ (state_attr('sensor.red_bull_sandbox_credentials_uap_migration_failed','members') or []) | map(attribute='person') | unique | list | join(', ') or 'none' }}.
+          People: {{ (state_attr('sensor.red_bull_sandbox_people_uap_migration_failed','members') or []) | map(attribute='name') | unique | list | join(', ') or 'none' }}.
     - action: notify.mobile_app_bart_iphone15
       data:
         title: "NMA: UAP migration failed"
         message: >-
-          Migration failed — credentials {{ states('sensor.red_bull_sandbox_credentials_uap_migration_failed') }},
-          people {{ states('sensor.red_bull_sandbox_people_uap_migration_failed') }}.
+          Migration failed — credentials: {{ (state_attr('sensor.red_bull_sandbox_credentials_uap_migration_failed','members') or []) | map(attribute='person') | unique | list | join(', ') or 'none' }};
+          people: {{ (state_attr('sensor.red_bull_sandbox_people_uap_migration_failed','members') or []) | map(attribute='name') | unique | list | join(', ') or 'none' }}.
 
 # --------------------------------------------------------------------------- #
 # 3. People blocked or removed by ACS
@@ -100,14 +99,13 @@
         notification_id: nma_people_blocked_or_removed
         title: "NMA: people blocked/removed"
         message: >-
-          People blocked by ACS: {{ states('sensor.red_bull_sandbox_people_blocked_by_acs') }},
-          removed by ACS: {{ states('sensor.red_bull_sandbox_people_removed_by_acs') }}.
+          People blocked/removed by ACS:
+          {{ ((state_attr('sensor.red_bull_sandbox_people_blocked_by_acs','members') or []) + (state_attr('sensor.red_bull_sandbox_people_removed_by_acs','members') or [])) | map(attribute='name') | unique | list | join(', ') }}.
     - action: notify.mobile_app_bart_iphone15
       data:
         title: "NMA: people blocked/removed"
         message: >-
-          People blocked {{ states('sensor.red_bull_sandbox_people_blocked_by_acs') }},
-          removed {{ states('sensor.red_bull_sandbox_people_removed_by_acs') }}.
+          Blocked/removed: {{ ((state_attr('sensor.red_bull_sandbox_people_blocked_by_acs','members') or []) + (state_attr('sensor.red_bull_sandbox_people_removed_by_acs','members') or [])) | map(attribute='name') | unique | list | join(', ') }}.
 
 # --------------------------------------------------------------------------- #
 # 4. ACS WebSocket down for more than 5 minutes

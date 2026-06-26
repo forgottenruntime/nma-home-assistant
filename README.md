@@ -234,6 +234,10 @@ Highlights:
   amber / red bands) instead of a plain text total.
 - An **Alerts** card listing the six example automations with their
   *last-triggered* time, so you can see at a glance which fired and when.
+- A **Blocked / flagged** section that stays hidden until something is actually
+  blocked, removed or migration-failed — then it appears and lists the affected
+  people (name + email) and credentials (number + person), via section-level
+  `visibility` and the `members` attribute.
 - **Trends** split into recent history graphs and long-term statistics graphs.
 
 To use it: **Dashboard → Edit → ⋮ → Raw configuration editor**, paste it in, then
