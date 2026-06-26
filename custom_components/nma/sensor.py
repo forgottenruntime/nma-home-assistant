@@ -20,6 +20,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.util import slugify
 
 from .const import DOMAIN, MANUFACTURER, MODEL
 from .coordinator import NmaCoordinator
@@ -88,7 +89,49 @@ async def async_setup_entry(
     for ums in UapMigrationStatus:
         entities.append(_credentials_by_uap(coordinator, ums))
 
+    # People bucketed by how many credentials (devices) they hold.
+    entities.append(
+        _people_by_credential_count(
+            coordinator,
+            "people_credentials_0",
+            "People with 0 credentials",
+            lambda p: p.credential_count == 0,
+            icon="mdi:account-cancel",
+        )
+    )
+    entities.append(
+        _people_by_credential_count(
+            coordinator,
+            "people_credentials_1",
+            "People with 1 credential",
+            lambda p: p.credential_count == 1,
+            icon="mdi:account",
+        )
+    )
+    entities.append(
+        _people_by_credential_count(
+            coordinator,
+            "people_credentials_2",
+            "People with 2 credentials",
+            lambda p: p.credential_count == 2,
+            icon="mdi:account-multiple",
+        )
+    )
+    entities.append(
+        _people_by_credential_count(
+            coordinator,
+            "people_credentials_3plus",
+            "People with 3+ credentials",
+            lambda p: p.credential_count >= 3,
+            icon="mdi:account-group",
+        )
+    )
+
     async_add_entities(entities)
+
+    # People / credentials counted per (company-defined) person type, e.g.
+    # Employee / Contractor / Visitor. Discovered dynamically from the data.
+    _DynamicPersonTypeAdder(coordinator, async_add_entities).start()
 
     # Dynamic per-person / per-credential entities (disabled by default).
     _DynamicPersonAdder(coordinator, async_add_entities).start()
@@ -547,6 +590,53 @@ def _people_by_uap(
     )
 
 
+def _people_by_credential_count(
+    coordinator: NmaCoordinator,
+    key: str,
+    name: str,
+    predicate: Callable[[Any], bool],
+    *,
+    icon: str = "mdi:account-multiple",
+) -> _CountSensor:
+    return _CountSensor(
+        coordinator,
+        key=key,
+        name=name,
+        unit="people",
+        predicate=predicate,
+        source="people",
+        icon=icon,
+    )
+
+
+def _people_by_person_type(
+    coordinator: NmaCoordinator, slug: str, type_name: str
+) -> _CountSensor:
+    return _CountSensor(
+        coordinator,
+        key=f"people_type_{slug}",
+        name=f"People {type_name}",
+        unit="people",
+        predicate=lambda p: p.person_type.name == type_name,
+        source="people",
+        icon="mdi:account-tie",
+    )
+
+
+def _credentials_by_person_type(
+    coordinator: NmaCoordinator, slug: str, type_name: str
+) -> _CountSensor:
+    return _CountSensor(
+        coordinator,
+        key=f"credentials_type_{slug}",
+        name=f"Credentials {type_name}",
+        unit="credentials",
+        predicate=lambda c: c.person.person_type.name == type_name,
+        source="credentials",
+        icon="mdi:card-account-details",
+    )
+
+
 def _credentials_by_status(
     coordinator: NmaCoordinator, status: CredentialStatus
 ) -> _CountSensor:
@@ -825,4 +915,39 @@ class _DynamicCredentialAdder(_DynamicAdderBase):
             new.append(CredentialSensor(self._coordinator, credential))
         if new:
             _LOGGER.debug("Adding %d new CredentialSensor entities", len(new))
+            self._async_add_entities(new)
+
+
+class _DynamicPersonTypeAdder(_DynamicAdderBase):
+    """Creates People- and Credentials-by-type count sensors per discovered
+    person type (company-defined, e.g. Employee / Contractor / Visitor)."""
+
+    @callback
+    def _on_update(self) -> None:
+        data = self._coordinator.data
+        if data is None:
+            return
+        # slug -> display name, gathered from both people and credentials.
+        types: Dict[str, str] = {}
+        for p in data.people:
+            types.setdefault(slugify(p.person_type.name), p.person_type.name)
+        for c in data.credentials:
+            types.setdefault(
+                slugify(c.person.person_type.name), c.person.person_type.name
+            )
+
+        new: List[SensorEntity] = []
+        for slug, name in types.items():
+            people_key = f"people_type_{slug}"
+            if people_key not in self._seen:
+                self._seen.add(people_key)
+                new.append(_people_by_person_type(self._coordinator, slug, name))
+            cred_key = f"credentials_type_{slug}"
+            if cred_key not in self._seen:
+                self._seen.add(cred_key)
+                new.append(
+                    _credentials_by_person_type(self._coordinator, slug, name)
+                )
+        if new:
+            _LOGGER.debug("Adding %d new person-type count sensors", len(new))
             self._async_add_entities(new)

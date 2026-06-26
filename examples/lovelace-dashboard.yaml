@@ -298,6 +298,15 @@ views:
               - entity: sensor.red_bull_sandbox_credentials_person_blocked_by_acs
                 name: Person blocked by ACS
               - type: section
+                label: By type
+              # credentials_type_<slugified person-type name>; adjust to match.
+              - entity: sensor.red_bull_sandbox_credentials_employee
+                name: Employee
+              - entity: sensor.red_bull_sandbox_credentials_contractor
+                name: Contractor
+              - entity: sensor.red_bull_sandbox_credentials_visitor
+                name: Visitor
+              - type: section
                 label: By platform
               - entity: sensor.red_bull_sandbox_credentials_on_apple
                 name: Apple
@@ -345,6 +354,27 @@ views:
                 name: Blocked by ACS
               - entity: sensor.red_bull_sandbox_people_removed_by_acs
                 name: Removed by ACS
+              - type: section
+                label: By type
+              # Per-person-type sensors are created from the data; the entity
+              # id is people_type_<slugified type name>. Adjust to match yours
+              # (Developer Tools → States → type "people_type").
+              - entity: sensor.red_bull_sandbox_people_employee
+                name: Employee
+              - entity: sensor.red_bull_sandbox_people_contractor
+                name: Contractor
+              - entity: sensor.red_bull_sandbox_people_visitor
+                name: Visitor
+              - type: section
+                label: By number of devices
+              - entity: sensor.red_bull_sandbox_people_with_0_credentials
+                name: 0 credentials
+              - entity: sensor.red_bull_sandbox_people_with_1_credential
+                name: 1 credential
+              - entity: sensor.red_bull_sandbox_people_with_2_credentials
+                name: 2 credentials
+              - entity: sensor.red_bull_sandbox_people_with_3_credentials
+                name: 3+ credentials
               - type: section
                 label: By platform
               - entity: sensor.red_bull_sandbox_people_on_apple

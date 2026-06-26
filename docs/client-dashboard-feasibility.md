@@ -60,9 +60,9 @@ latency require a platform **health endpoint** (API ref 2.4).
 | API response time line graph, 24 h → 1 year | ✅ | `history-graph` (recent) + `statistics-graph` (long-term, ~1 yr) on `last_update_duration`. (Round-trip latency; server-side needs 2.4.) | (2.4) |
 | Healthy vs offline distribution chart | 🟡 | HA history of the connectivity binary sensors shows up/down over time; a true pie of % needs a template or a small custom card. | — |
 | System errors **by type** (bar chart) | ❌ | No categorised error data in the API. | 2.5 |
-| Users over time, per user type | 🟡 | Buildable **once** we add per-`personType` count sensors. The API has `personType`, but it is free-text — a stable category (1.6) makes this reliable. | 1.6 |
-| Total users & per type | 🟡 | Same as above — needs personType breakdown sensors (and ideally the summary endpoint at scale). | 1.6, 2.1 |
-| Total users & per number of devices (0/1/2) | ✅ | API exposes `Person.credentialCount`; we can bucket. Better via the summary endpoint at scale. | 1.7, 2.1 |
+| Users over time, per user type | ✅ | Implemented (v0.1.7): per-`personType` count sensors (Employee/Contractor/Visitor, discovered dynamically). Uses the free-text `personType.name`; a stable category (1.6) would make it more robust across renames. | (1.6) |
+| Total users & per type | ✅ | Implemented (v0.1.7) as `sensor.*_people_<type>`. At very large scale a summary endpoint would still help. | (2.1) |
+| Total users & per number of devices (0/1/2) | ✅ | Implemented (v0.1.7): `people_credentials_0/1/2/3plus` buckets from `Person.credentialCount`. | — |
 | Total users & per device type | ✅ | We added device labels (iPhone/Apple Watch/…) in v0.1.6. | — |
 | Total users & per **iOS version** | ❌ | API does not expose OS version (though your Devices UI shows it). | 1.1 |
 | Total credentials & per state | ✅ | Already shipped (per-`CredentialStatus` sensors). | — |
@@ -72,7 +72,7 @@ latency require a platform **health endpoint** (API ref 2.4).
 | Requirement | HA | Notes | API ref |
 | --- | --- | --- | --- |
 | Filter by error type | ❌ | No error data. | 2.5 |
-| Filter by user type (employee/contractor/visitor) | 🟡 | Needs personType category (1.6); then HA filtering via separate entities/cards. | 1.6 |
+| Filter by user type (employee/contractor/visitor) | ✅ | Implemented (v0.1.7): per-type count sensors for people and credentials; filter via separate cards. A stable category (1.6) would harden it. | (1.6) |
 | Filter by credential state | ✅ | Per-state sensors already exist. | — |
 | Filter by time range (hour…year) | ✅ | Built into HA history/statistics graphs. | — |
 | Users customize widgets | 🟡 | HA dashboards are user-editable, but per-user *saved* layouts and locked widgets are limited (see §6). | — |
@@ -107,7 +107,8 @@ incompatible with the current API at the client's data volume.
 - AEOS link status + "up since"; API-reachable watchdog; round-trip latency.
 - Latency-threshold and connectivity alerts; email/mobile/incident notifications.
 - Credentials by state; people/credentials totals; device-type breakdown
-  (iPhone/Apple Watch/…); users by credential-count.
+  (iPhone/Apple Watch/…); users by credential-count (0/1/2/3+); users and
+  credentials by person type (Employee/Contractor/Visitor).
 - Recent + long-term (≈1 yr) trend graphs; time-range filtering.
 - Authenticated access.
 

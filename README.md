@@ -29,9 +29,12 @@ Home Assistant entities. Built primarily as a **test/debug harness** for the API
   UAP migration status, enabled platforms, max-people, max-credentials,
   use-app-key, DF name, TCI value, tenant ID.
 - **People** sensors: total count, plus counts per `PersonStatus`,
-  per `Platform`, per `UapMigrationStatus`.
+  per `Platform`, per `UapMigrationStatus`, per **credential-count bucket**
+  (0 / 1 / 2 / 3+ devices), and per **person type** (Employee / Contractor /
+  Visitor — discovered dynamically from the data).
 - **Credentials** sensors: total count, plus counts per `CredentialStatus`,
-  per `Platform`, per `DeviceType`, per `UapMigrationStatus`.
+  per `Platform`, per `DeviceType`, per `UapMigrationStatus`, and per
+  **person type**.
 - Every breakdown count sensor also carries a **`members` attribute** listing
   who is in that bucket (people: name/email/id/devices; credentials:
   number/person/id/device_type/platform/device), capped at 50 — so you can see
