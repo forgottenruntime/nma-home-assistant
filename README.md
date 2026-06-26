@@ -218,13 +218,34 @@ If you run **multiple config entries that share one token**, they share the real
 A ready-made Lovelace dashboard lives at
 [`examples/lovelace-dashboard.yaml`](examples/lovelace-dashboard.yaml). It groups
 the entities into **Company**, **Connectivity & health**, **Credentials**,
-**People**, **Individual credentials** and **Diagnostics** sections, gives every
-tile a short readable name, and shows credential/people totals as
-`used / limit (%)`.
+**People**, **Individual credentials**, **Trends** and **Diagnostics** sections,
+gives every tile a short readable name, shows credential/people totals as
+`used / limit (%)`, and graphs totals / connectivity / backlog / poll duration
+over time.
 
 To use it: **Dashboard → Edit → ⋮ → Raw configuration editor**, paste it in, then
 find-and-replace `red_bull_sandbox` with your own company slug (the slugified
 device name) if it differs.
+
+## Example automations / alerts
+
+Many breakdown sensors normally read `0` — they become useful as **alerts** when
+something goes wrong. [`examples/automations.yaml`](examples/automations.yaml)
+ships six ready-to-use automations:
+
+| Alert | Triggers when |
+|-------|---------------|
+| Credentials blocked | any credential is blocked by platform / ACS / person |
+| UAP migration failed | a credential or person is in `MIGRATION_FAILED` |
+| People blocked or removed | a person is blocked or removed by ACS |
+| ACS WebSocket down | the WebSocket stays down for 5 minutes |
+| API unreachable | polling fails for 10 minutes (includes last error) |
+| ACS message backlog | pending messages stay above 50 for 10 minutes |
+
+Each raises a **persistent notification** out of the box (no notify setup
+needed); uncomment the `notify.mobile_app_*` block to also push to your phone.
+Paste them into **Settings → Automations & scenes → ⋮ → Edit in YAML**, or append
+to your `automations.yaml`. Replace the `red_bull_sandbox` slug as needed.
 
 ## Test against the mock server
 

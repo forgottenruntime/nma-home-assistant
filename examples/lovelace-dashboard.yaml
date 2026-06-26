@@ -191,6 +191,43 @@ views:
             name: Bart · #9669142438
 
       # ------------------------------------------------------------------ #
+      # Trends (history graphs — built-in, need recorder history)
+      # ------------------------------------------------------------------ #
+      - type: grid
+        cards:
+          - type: heading
+            heading: Trends
+            icon: mdi:chart-line
+          - type: history-graph
+            title: Totals (7 days)
+            hours_to_show: 168
+            entities:
+              - entity: sensor.red_bull_sandbox_people_total
+                name: People
+              - entity: sensor.red_bull_sandbox_credentials_total
+                name: Credentials
+          - type: history-graph
+            title: ACS WebSocket pending messages (24 h)
+            hours_to_show: 24
+            entities:
+              - entity: sensor.red_bull_sandbox_acs_websocket_pending_messages
+                name: Pending messages
+          - type: history-graph
+            title: Connectivity (24 h)
+            hours_to_show: 24
+            entities:
+              - entity: binary_sensor.red_bull_sandbox_api_reachable
+                name: API reachable
+              - entity: binary_sensor.red_bull_sandbox_acs_websocket
+                name: ACS WebSocket
+          - type: history-graph
+            title: Poll duration (24 h)
+            hours_to_show: 24
+            entities:
+              - entity: sensor.red_bull_sandbox_last_update_duration
+                name: Update duration
+
+      # ------------------------------------------------------------------ #
       # Diagnostics
       # ------------------------------------------------------------------ #
       - type: grid
