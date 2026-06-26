@@ -226,6 +226,32 @@ views:
             entities:
               - entity: sensor.red_bull_sandbox_last_update_duration
                 name: Update duration
+          # Long-term statistics — survives recorder purges (uses the
+          # MEASUREMENT state_class these sensors expose). Min / mean / max
+          # per day, so you keep months of history at low storage cost.
+          - type: statistics-graph
+            title: Totals — long term (90 days, daily)
+            period: day
+            days_to_show: 90
+            stat_types:
+              - min
+              - mean
+              - max
+            entities:
+              - entity: sensor.red_bull_sandbox_people_total
+                name: People
+              - entity: sensor.red_bull_sandbox_credentials_total
+                name: Credentials
+          - type: statistics-graph
+            title: ACS pending messages — long term (30 days)
+            period: day
+            days_to_show: 30
+            stat_types:
+              - max
+              - mean
+            entities:
+              - entity: sensor.red_bull_sandbox_acs_websocket_pending_messages
+                name: Pending messages
 
       # ------------------------------------------------------------------ #
       # Diagnostics

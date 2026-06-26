@@ -243,9 +243,17 @@ ships six ready-to-use automations:
 | ACS message backlog | pending messages stay above 50 for 10 minutes |
 
 Each raises a **persistent notification** out of the box (no notify setup
-needed); uncomment the `notify.mobile_app_*` block to also push to your phone.
-Paste them into **Settings → Automations & scenes → ⋮ → Edit in YAML**, or append
-to your `automations.yaml`. Replace the `red_bull_sandbox` slug as needed.
+needed). To **also push to your phone**, do two find-and-replace passes on the
+file: set your notify service (`notify.mobile_app_your_phone` → yours, found in
+**Developer Tools → Actions → `notify.`**), then replace `#@ ` with nothing to
+uncomment the push action in every automation at once. Paste them into
+**Settings → Automations & scenes → ⋮ → Edit in YAML**, or append to your
+`automations.yaml`. Replace the `red_bull_sandbox` slug as needed.
+
+The example dashboard's **Trends** section also includes two `statistics-graph`
+cards (totals over 90 days, ACS backlog over 30 days). These use Home
+Assistant's **long-term statistics** — they survive recorder purges, so you keep
+months of min/mean/max history at low storage cost.
 
 ## Test against the mock server
 
