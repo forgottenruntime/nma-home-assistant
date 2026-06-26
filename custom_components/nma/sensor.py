@@ -618,7 +618,9 @@ class PersonSensor(CoordinatorEntity[NmaCoordinator], SensorEntity):
             "credential_count": p.credential_count,
             "person_type": p.person_type.name,
             "person_type_id": str(p.person_type.id),
-            "creation_date": p.creation_date.isoformat(),
+            "creation_date": (
+                p.creation_date.isoformat() if p.creation_date else None
+            ),
             "platforms": [pl.value for pl in p.platforms],
             "uap_migration_status": (
                 p.uap_migration_status.value if p.uap_migration_status else None
@@ -677,7 +679,9 @@ class CredentialSensor(CoordinatorEntity[NmaCoordinator], SensorEntity):
             "person_id": str(c.person.id),
             "person_name": c.person.name,
             "person_type": c.person.person_type.name,
-            "creation_date": c.creation_date.isoformat(),
+            "creation_date": (
+                c.creation_date.isoformat() if c.creation_date else None
+            ),
             "uap_migration_status": (
                 c.uap_migration_status.value if c.uap_migration_status else None
             ),

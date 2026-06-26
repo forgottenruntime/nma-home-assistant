@@ -190,7 +190,7 @@ class Credential(_Model):
     id: UUID
     number: int
     device_type: DeviceType
-    creation_date: datetime
+    creation_date: Optional[datetime] = None
     person: PersonDetails
     status: CredentialStatus
     platform: Platform
@@ -203,7 +203,7 @@ class Person(_Model):
     email: str
     status: PersonStatus
     person_type: PersonType
-    creation_date: datetime
+    creation_date: Optional[datetime] = None
     credential_count: int
     platforms: List[Platform]
     uap_migration_status: Optional[UapMigrationStatus] = None
