@@ -100,6 +100,38 @@ incompatible with the current API at the client's data volume.
 | --- | --- | --- |
 | Dashboard metrics/KPIs via REST API | 🟡 | HA exposes all entity states/attributes via its own REST + WebSocket API and templates, so the KPIs we compute are queryable. If the requirement means the **NMA platform** must expose these KPIs directly, that maps to the summary/health endpoints (API refs 2.1, 2.4). |
 
+## 8. Platform status, WebSocket, provisioning & history
+
+Additional review items raised after the mock-ups.
+
+| Requirement | HA | Notes | API ref |
+| --- | --- | --- | --- |
+| Platform healthiness | 🟡 | Only "can we reach the API" today; true health/components need an endpoint. | 2.4 |
+| Platform uptime / availability | ❌ | No uptime figure exposed. | 5.1 |
+| Last incident / incidents over time | ❌ | No incident data in the API. | 5.2 |
+| Planned maintenance | ❌ | No maintenance-window data. | 5.3 |
+| Apple services connectivity + uptime | ❌ | No Apple-side health. | 2.4, 5.1 |
+| Google services connectivity + uptime | ❌ | No Google-side health. | 2.4, 5.1 |
+| WebSocket response time | ❌ | `acsWebSocket` has no latency field. | 5.4 |
+| WebSocket how long offline since up | 🟡 | HA can derive from its own history of the `up` flag. | (5.4) |
+| WebSocket times offline over time | 🟡 | Same — HA counts state changes from history. | (5.4) |
+| Provisioning live queue | 🟡 | Only `pendingMessagesCount` (a single backlog number); no queue detail. | 5.5 |
+| Provisioning events & logs | ❌ | No event/log endpoint. | 5.5, 2.5 |
+| Provisioning counts today / month / periods | ❌ | No timestamped provisioning data to aggregate. | 5.5 |
+| Provisioning errors today / 24 h / week | ❌ | No categorised error feed. | 5.5, 2.5 |
+| Badge pending / active / blocked | ✅ | Already shipped (per-`CredentialStatus` sensors). | — |
+| Badge last time used | ❌ | No `lastUsedAt`. | 1.4 |
+| Badge how many times used | ❌ | No usage count. | 1.8 |
+| Relation user ↔ credential ↔ device | 🟡 | Buildable now via credential→person and device-type; "device" is a type, not a full device record (no model/serial). | (1.1) |
+| Evolution over time vs previous period | 🟡 | HA charts evolution **going forward** (statistics, ~1 yr) and can compare periods with template helpers. **Historical backfill** (data from before HA started recording) needs a totals-history endpoint. | 2.6 |
+
+**Net:** badge status counts and the user↔credential↔device-type relation are
+available now; WebSocket "times/duration offline" and forward-looking evolution
+are derivable from HA's own history. Everything else in this section — platform
+uptime/incidents/maintenance, Apple/Google uptime, WebSocket latency,
+provisioning queue/logs/throughput, badge usage, and true historical comparison
+— requires the API additions referenced above.
+
 ---
 
 ## What we can deliver now (no API changes)

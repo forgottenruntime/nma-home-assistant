@@ -55,17 +55,32 @@ Three read-only `GET` endpoints, scoped to a company:
 | 1.5 | Consistent `creationDate` (spec vs behaviour mismatch) | High |
 | 1.6 | `personType` category (Employee / Contractor / Visitor) on `Person` | High |
 | 2.1 | Summary/aggregate endpoint (counts without full pagination) | High |
-| 2.4 | Server-side health & latency metrics (SaaS, components, Apple) | High |
+| 2.4 | Server-side health & latency metrics (SaaS, components, Apple, Google) | High |
 | 3.1 | Webhooks / event stream for status changes | High |
+| 5.1 | Platform uptime / availability metrics | High |
+| 5.5 | Credential provisioning queue & throughput | High |
 | 1.3 | Block/removal reason & actor | Medium |
 | 1.4 | Credential last-used / last-active timestamp | Medium |
 | 1.7 | `credentialCount` buckets / users-by-device-count | Medium |
+| 1.8 | Credential usage count (how many times used) | Medium |
 | 2.2 | Delta sync (`updatedSince` + `ETag`/`Last-Modified`) | Medium |
 | 2.3 | Rate-limit headroom / `X-RateLimit-*` headers | Medium |
 | 2.5 | System-error / event feed categorised by type | Medium |
+| 2.6 | Historical totals / point-in-time snapshots (evolution over time) | Medium |
+| 5.2 | Incident history (last incident, incidents over time) | Medium |
+| 5.3 | Planned-maintenance schedule | Medium |
+| 5.4 | WebSocket metrics (response time, downtime history) | Medium |
 | 4.1 | Structured `429` body + `Retry-After` | Low |
 | 4.2 | JSON error schema on `5xx` (not HTML) | Low |
 | 4.3 | `personType` value documentation | Low |
+
+> **Already achievable today (no API change needed) — for reference:** badge
+> status counts (pending / active / blocked) are available now; the
+> *user ↔ credential ↔ device-type* relation is exposed via credential/person
+> attributes; and the consuming client can chart **its own** observed metrics
+> over time (e.g. WebSocket up/down history → "times offline", and totals going
+> forward) using its local history store. The items below are the gaps that the
+> client **cannot** synthesise and that only the platform can provide.
 
 ---
 
@@ -132,7 +147,19 @@ Three read-only `GET` endpoints, scoped to a company:
 - **Today:** no field indicating when a credential was last used (e.g. last door
   access).
 - **Need:** `lastUsedAt` / `lastSeenAt` on `Credential`.
-- **Why:** identify stale or unused credentials for clean-up.
+- **Why:** identify stale or unused credentials for clean-up; the client asks for
+  a badge's *"last time used"*.
+
+### 1.8 Credential usage count — **Medium**
+- **Today:** no field counting how often a credential has been used.
+- **Need:** a `usageCount` (and ideally a usage feed; see 5.5) on `Credential`.
+- **Suggested shape** — add to `Credential`:
+  ```jsonc
+  "usageCount": 142,
+  "lastUsedAt": "2026-06-26T07:55:00Z"
+  ```
+- **Why:** the client asks per badge for *"how many times used"*; not derivable
+  from the current data.
 
 ### 1.5 Consistent `creationDate` (spec vs behaviour) — **High (data-consistency)**
 - **Today:** the OpenAPI spec marks `Credential.creationDate` and
@@ -221,15 +248,16 @@ Three read-only `GET` endpoints, scoped to a company:
   {
     "saas":   { "status": "UP", "components": { "provisioning": "UP", "acs-bridge": "DEGRADED" } },
     "apple":  { "status": "UP", "apiLatencyMs": { "p50": 120, "p95": 380 } },
+    "google": { "status": "UP", "apiLatencyMs": { "p50": 110, "p95": 300 } },
     "api":    { "latencyMs": { "p50": 90, "p95": 250 } },
     "aeos":   { "reachable": true, "connected": true, "since": "2026-06-26T03:00:00Z" }
   }
   ```
 - **Why:** the client mock-up's entire *Health Indicators* and *Alerts* sections
-  (SaaS uptime, components running, API response times, Apple connectivity,
+  (SaaS uptime, components running, API response times, Apple/Google connectivity,
   latency > 500 ms) depend on data only the platform itself can report. A
   consumer measuring its own round-trip cannot distinguish *its* network from
-  *the platform's* health, nor see component-level or Apple-side status.
+  *the platform's* health, nor see component-level or Apple/Google-side status.
 
 ### 2.5 System-error / event feed by type — **Medium**
 - **Today:** no endpoint lists operational errors/events.
@@ -245,6 +273,28 @@ Three read-only `GET` endpoints, scoped to a company:
   ```
 - **Why:** the mock-up's *"system errors by type"* bar chart and the *filter by
   error type* requirement.
+
+### 2.6 Historical totals / point-in-time snapshots — **Medium**
+- **Today:** all list/summary data is *current state only*. A consumer can chart
+  totals **going forward** from the moment it starts recording, but cannot show
+  the evolution of users/credentials **before** that, nor compare reliably
+  against "yesterday / last week / last month / quarter / year".
+- **Need:** either historical aggregate snapshots, or a time-series query.
+- **Suggested shape:**
+  ```
+  GET /api/admin/companies/{companyId}/summary/history?from=…&to=…&interval=day
+  ```
+  ```jsonc
+  { "series": [
+    { "at": "2026-06-25", "people": 8788, "credentials": 6870, "byStatus": { "ACTIVE": 8713 } },
+    { "at": "2026-06-26", "people": 8790, "credentials": 6873, "byStatus": { "ACTIVE": 8715 } }
+  ] }
+  ```
+- **Why:** the client wants *"evolution of users / credentials over time,
+  compared to previous day / week / month / quarter / half-year / year"*. The
+  consumer can build this **prospectively** from its own history, but **period-
+  over-period comparison with real history (and any backfill) needs the platform
+  to retain and expose past totals**.
 
 ---
 
@@ -291,6 +341,97 @@ Three read-only `GET` endpoints, scoped to a company:
 
 ---
 
+## 5. Platform status & observability
+
+*These map to the client's "platform healthiness / uptime / incidents /
+maintenance", WebSocket and provisioning-queue requirements. None are derivable
+from the current API.*
+
+### 5.1 Uptime / availability metrics — **High**
+- **Today:** no uptime or availability figure for the platform, Apple, or Google
+  services is exposed.
+- **Need:** rolling uptime / availability % (e.g. 24 h / 7 d / 30 d) for: NMA
+  SaaS overall, each component, the Apple platform, and the Google platform.
+- **Suggested shape** — extend the health endpoint (2.4):
+  ```jsonc
+  "saas":   { "status": "UP", "uptime": { "24h": 100.0, "30d": 99.95 } },
+  "apple":  { "status": "UP", "uptime": { "24h": 100.0, "30d": 99.9 } },
+  "google": { "status": "UP", "uptime": { "24h": 100.0, "30d": 99.8 } }
+  ```
+- **Why:** client items *platform uptime / availability*, *Apple/Google services
+  connectivity status and uptime*.
+
+### 5.2 Incident history — **Medium**
+- **Today:** no incident data.
+- **Need:** the last incident and a list of past incidents (status-page style).
+- **Suggested shape:**
+  ```
+  GET /api/admin/status/incidents?from=…&to=…
+  ```
+  ```jsonc
+  { "lastIncident": { "id": "…", "title": "…", "impact": "MAJOR",
+                     "startedAt": "…", "resolvedAt": "…" },
+    "items": [ /* same shape, historical */ ] }
+  ```
+- **Why:** client items *last incident*, *incidents over time*.
+
+### 5.3 Planned-maintenance schedule — **Medium**
+- **Today:** no maintenance-window data.
+- **Need:** upcoming/past planned-maintenance windows.
+- **Suggested shape:**
+  ```
+  GET /api/admin/status/maintenance
+  ```
+  ```jsonc
+  { "items": [ { "id": "…", "title": "…", "scheduledStart": "…", "scheduledEnd": "…",
+                "components": ["provisioning"], "status": "SCHEDULED" } ] }
+  ```
+- **Why:** client item *planned maintenance*.
+
+### 5.4 WebSocket metrics — **Medium**
+- **Today:** `Company.acsWebSocket` exposes `up`, `since` and
+  `pendingMessagesCount` only — no latency, and no downtime history.
+- **Need:** WebSocket **response time / latency**, and downtime statistics
+  (how long offline since last up; how many times offline over a window).
+- **Suggested shape** — extend `acsWebSocket`:
+  ```jsonc
+  "acsWebSocket": {
+    "up": true, "since": "…", "pendingMessagesCount": 0,
+    "latencyMs": 35,
+    "downtime": { "lastOutageDurationS": 0, "outages24h": 0, "outages30d": 2 }
+  }
+  ```
+- **Note:** a consumer **can** approximate *"times offline"* and *"how long
+  offline"* from its own history of the `up` flag, but **latency** and exact
+  server-side downtime require the platform to report them.
+- **Why:** client WebSocket items *response time*, *how long offline since up*,
+  *how many times offline over time*.
+
+### 5.5 Credential provisioning queue & throughput — **High**
+- **Today:** the only provisioning signal is `acsWebSocket.pendingMessagesCount`
+  (a single backlog number). There is no queue detail, no event log, and no
+  throughput/error counts by period.
+- **Need:**
+  - a **live queue** view (depth + items being provisioned),
+  - a **provisioning event log** with timestamps and outcome (success/error),
+  - aggregate **throughput and error counts** by period (today / 24 h / week /
+    month).
+- **Suggested shape:**
+  ```
+  GET /api/admin/companies/{companyId}/provisioning/queue
+  GET /api/admin/companies/{companyId}/provisioning/events?since=…
+  GET /api/admin/companies/{companyId}/provisioning/stats?period=day
+  ```
+  ```jsonc
+  { "queueDepth": 3, "inProgress": [ { "credentialId": "…", "since": "…" } ] }
+  { "items": [ { "at": "…", "credentialId": "…", "event": "PROVISIONED", "durationMs": 820 } ] }
+  { "period": "day", "provisioned": 412, "failed": 3, "errorsByType": { "APPLE_TIMEOUT": 2 } }
+  ```
+- **Why:** client *credential provisioning* items — live queue, events and logs,
+  counts today / this month / other periods, and errors per period.
+
+---
+
 ## How to read priorities
 
 - **High** — blocks or significantly degrades a core use case (device identity,
@@ -298,5 +439,5 @@ Three read-only `GET` endpoints, scoped to a company:
 - **Medium** — meaningful improvement; we have a working but suboptimal workaround.
 - **Low** — robustness/quality-of-life.
 
-*Prepared by the integration team. Happy to discuss concrete schemas or provide
+*Prepared by Bart Vervueren. Happy to discuss concrete schemas or provide
 sample payloads for any item.*
