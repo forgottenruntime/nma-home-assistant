@@ -2,16 +2,21 @@
 #
 # How to use:
 #   Dashboard → Edit dashboard → ⋮ (top-right) → Raw configuration editor
-#   → paste this in (or merge the `views:` list).
+#   → paste this in (replacing everything, or merge the `views:` list).
 #
 # This example targets a company whose entities are prefixed
 # `red_bull_sandbox`. If your company slug differs, find-and-replace
 # `red_bull_sandbox` with yours (it is the slugified device name).
+#
+# The two gauges hard-code max: 300 to match this company's limits. Set each
+# gauge's `max:` to your own `max_credentials` / `max_people` value (shown in
+# the Diagnostics section).
 views:
   - title: NMA
     path: nma
     type: sections
     max_columns: 3
+    dense_section_placement: true
     sections:
       # ------------------------------------------------------------------ #
       # Company overview
@@ -41,6 +46,35 @@ views:
             name: Uses app key
 
       # ------------------------------------------------------------------ #
+      # Usage gauges (replace the old text totals)
+      # ------------------------------------------------------------------ #
+      - type: grid
+        cards:
+          - type: heading
+            heading: Usage
+            icon: mdi:gauge
+          - type: gauge
+            entity: sensor.red_bull_sandbox_credentials_total
+            name: Credentials
+            min: 0
+            max: 300  # set to your max_credentials
+            needle: true
+            severity:
+              green: 0
+              yellow: 240
+              red: 270
+          - type: gauge
+            entity: sensor.red_bull_sandbox_people_total
+            name: People
+            min: 0
+            max: 300  # set to your max_people
+            needle: true
+            severity:
+              green: 0
+              yellow: 240
+              red: 270
+
+      # ------------------------------------------------------------------ #
       # Connectivity & health
       # ------------------------------------------------------------------ #
       - type: grid
@@ -68,19 +102,48 @@ views:
             name: Update duration
 
       # ------------------------------------------------------------------ #
-      # Credentials
+      # Alerts — last fired
+      # (entity_ids are the slugified automation aliases from
+      #  examples/automations.yaml; adjust if yours differ — check
+      #  Developer Tools → States → type "automation.nma")
+      # ------------------------------------------------------------------ #
+      - type: grid
+        cards:
+          - type: heading
+            heading: Alerts
+            icon: mdi:bell-alert
+          - type: entities
+            title: Last fired
+            show_header_toggle: false
+            state_color: true
+            entities:
+              - entity: automation.nma_credentials_blocked
+                name: Credentials blocked
+                secondary_info: last-triggered
+              - entity: automation.nma_uap_migration_failed
+                name: UAP migration failed
+                secondary_info: last-triggered
+              - entity: automation.nma_people_blocked_or_removed
+                name: People blocked/removed
+                secondary_info: last-triggered
+              - entity: automation.nma_acs_websocket_down
+                name: ACS WebSocket down
+                secondary_info: last-triggered
+              - entity: automation.nma_api_unreachable
+                name: API unreachable
+                secondary_info: last-triggered
+              - entity: automation.nma_acs_message_backlog
+                name: ACS message backlog
+                secondary_info: last-triggered
+
+      # ------------------------------------------------------------------ #
+      # Credentials breakdown
       # ------------------------------------------------------------------ #
       - type: grid
         cards:
           - type: heading
             heading: Credentials
             icon: mdi:cellphone-key
-          - type: markdown
-            content: >
-              {% set t = states('sensor.red_bull_sandbox_credentials_total')|int(0)
-              %}{% set m = states('sensor.red_bull_sandbox_max_credentials')|int(0)
-              %}## {{ t }}{% if m %} / {{ m }} credentials · {{ (100*t/m)|round(1) }}%
-              used{% else %} credentials{% endif %}
           - type: entities
             title: Breakdown
             show_header_toggle: false
@@ -128,19 +191,13 @@ views:
                 name: UAP
 
       # ------------------------------------------------------------------ #
-      # People
+      # People breakdown
       # ------------------------------------------------------------------ #
       - type: grid
         cards:
           - type: heading
             heading: People
             icon: mdi:account-multiple
-          - type: markdown
-            content: >
-              {% set t = states('sensor.red_bull_sandbox_people_total')|int(0)
-              %}{% set m = states('sensor.red_bull_sandbox_max_people')|int(0)
-              %}## {{ t }}{% if m %} / {{ m }} people · {{ (100*t/m)|round(1) }}%
-              used{% else %} people{% endif %}
           - type: entities
             title: Breakdown
             show_header_toggle: false
@@ -191,12 +248,12 @@ views:
             name: Bart · #9669142438
 
       # ------------------------------------------------------------------ #
-      # Trends (history graphs — built-in, need recorder history)
+      # Trends — recent (history graphs, need recorder history)
       # ------------------------------------------------------------------ #
       - type: grid
         cards:
           - type: heading
-            heading: Trends
+            heading: Trends — recent
             icon: mdi:chart-line
           - type: history-graph
             title: Totals (7 days)
@@ -207,7 +264,7 @@ views:
               - entity: sensor.red_bull_sandbox_credentials_total
                 name: Credentials
           - type: history-graph
-            title: ACS WebSocket pending messages (24 h)
+            title: ACS pending messages (24 h)
             hours_to_show: 24
             entities:
               - entity: sensor.red_bull_sandbox_acs_websocket_pending_messages
@@ -226,11 +283,17 @@ views:
             entities:
               - entity: sensor.red_bull_sandbox_last_update_duration
                 name: Update duration
-          # Long-term statistics — survives recorder purges (uses the
-          # MEASUREMENT state_class these sensors expose). Min / mean / max
-          # per day, so you keep months of history at low storage cost.
+
+      # ------------------------------------------------------------------ #
+      # Trends — long term (statistics, survive recorder purges)
+      # ------------------------------------------------------------------ #
+      - type: grid
+        cards:
+          - type: heading
+            heading: Trends — long term
+            icon: mdi:chart-bell-curve-cumulative
           - type: statistics-graph
-            title: Totals — long term (90 days, daily)
+            title: Totals (90 days, daily)
             period: day
             days_to_show: 90
             stat_types:
@@ -243,7 +306,7 @@ views:
               - entity: sensor.red_bull_sandbox_credentials_total
                 name: Credentials
           - type: statistics-graph
-            title: ACS pending messages — long term (30 days)
+            title: ACS pending messages (30 days)
             period: day
             days_to_show: 30
             stat_types:

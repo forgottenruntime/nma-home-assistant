@@ -217,15 +217,24 @@ If you run **multiple config entries that share one token**, they share the real
 
 A ready-made Lovelace dashboard lives at
 [`examples/lovelace-dashboard.yaml`](examples/lovelace-dashboard.yaml). It groups
-the entities into **Company**, **Connectivity & health**, **Credentials**,
-**People**, **Individual credentials**, **Trends** and **Diagnostics** sections,
-gives every tile a short readable name, shows credential/people totals as
-`used / limit (%)`, and graphs totals / connectivity / backlog / poll duration
-over time.
+the entities into **Company**, **Usage**, **Connectivity & health**, **Alerts**,
+**Credentials**, **People**, **Individual credentials**, **Trends — recent**,
+**Trends — long term** and **Diagnostics** sections, gives every tile a short
+readable name, and uses dense section placement so the columns pack evenly.
+
+Highlights:
+
+- **Usage gauges** for credentials and people (value vs limit, with green /
+  amber / red bands) instead of a plain text total.
+- An **Alerts** card listing the six example automations with their
+  *last-triggered* time, so you can see at a glance which fired and when.
+- **Trends** split into recent history graphs and long-term statistics graphs.
 
 To use it: **Dashboard → Edit → ⋮ → Raw configuration editor**, paste it in, then
 find-and-replace `red_bull_sandbox` with your own company slug (the slugified
-device name) if it differs.
+device name) if it differs. The two gauges hard-code `max: 300` — set each to
+your own `max_credentials` / `max_people`. The Alerts card assumes the example
+automations are loaded (entity IDs are their slugified aliases).
 
 ## Example automations / alerts
 
