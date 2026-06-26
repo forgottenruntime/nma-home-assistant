@@ -407,6 +407,11 @@ class TotalCredentialsSensor(_NmaBaseSensor):
 # --------------------------------------------------------------------------- #
 # Breakdown count sensors (one factory per dimension)
 # --------------------------------------------------------------------------- #
+# Cap how many member names we expose as an attribute, to keep the attribute
+# (and the recorder row) from growing unbounded on large buckets.
+_MAX_MEMBERS = 50
+
+
 class _CountSensor(_NmaBaseSensor):
     _attr_state_class = SensorStateClass.MEASUREMENT
 
@@ -427,13 +432,42 @@ class _CountSensor(_NmaBaseSensor):
         self._predicate = predicate
         self._source = source  # "people" or "credentials"
 
-    @property
-    def native_value(self) -> Optional[int]:
+    def _matches(self) -> list:
         d = self.coordinator.data
         if not d:
-            return None
+            return []
         items = d.people if self._source == "people" else d.credentials
-        return sum(1 for item in items if self._predicate(item))
+        return [item for item in items if self._predicate(item)]
+
+    @property
+    def native_value(self) -> Optional[int]:
+        if self.coordinator.data is None:
+            return None
+        return len(self._matches())
+
+    @property
+    def extra_state_attributes(self) -> Dict[str, Any]:
+        matches = self._matches()
+        if not matches:
+            return {}
+        if self._source == "people":
+            members = [
+                {"name": p.name, "email": p.email, "id": str(p.id)}
+                for p in matches[:_MAX_MEMBERS]
+            ]
+        else:
+            members = [
+                {
+                    "number": c.number,
+                    "person": c.person.name,
+                    "id": str(c.id),
+                }
+                for c in matches[:_MAX_MEMBERS]
+            ]
+        attrs: Dict[str, Any] = {"members": members}
+        if len(matches) > _MAX_MEMBERS:
+            attrs["members_truncated"] = len(matches) - _MAX_MEMBERS
+        return attrs
 
 
 def _people_by_status(

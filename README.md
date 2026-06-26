@@ -32,6 +32,9 @@ Home Assistant entities. Built primarily as a **test/debug harness** for the API
   per `Platform`, per `UapMigrationStatus`.
 - **Credentials** sensors: total count, plus counts per `CredentialStatus`,
   per `Platform`, per `DeviceType`, per `UapMigrationStatus`.
+- Every breakdown count sensor also carries a **`members` attribute** listing
+  who is in that bucket (people: name/email/id; credentials: number/person/id),
+  capped at 50 — so you can see *which* people are blocked, not just how many.
 - **One sensor per Person** and **one per Credential** (disabled by default
   in the entity registry — enable from the device page when you need them).
 - Diagnostic sensors: last successful update timestamp, last update

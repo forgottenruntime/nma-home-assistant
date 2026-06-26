@@ -1,7 +1,7 @@
 {
     "domain": "nma",
     "name": "NMA Mobile Credentials",
-    "version": "0.1.4",
+    "version": "0.1.5",
     "documentation": "https://github.com/forgottenruntime/nma-home-assistant",
     "issue_tracker": "https://github.com/forgottenruntime/nma-home-assistant/issues",
     "codeowners": ["@forgottenruntime"],
