@@ -242,13 +242,12 @@ ships six ready-to-use automations:
 | API unreachable | polling fails for 10 minutes (includes last error) |
 | ACS message backlog | pending messages stay above 50 for 10 minutes |
 
-Each raises a **persistent notification** out of the box (no notify setup
-needed). To **also push to your phone**, do two find-and-replace passes on the
-file: set your notify service (`notify.mobile_app_your_phone` → yours, found in
-**Developer Tools → Actions → `notify.`**), then replace `#@ ` with nothing to
-uncomment the push action in every automation at once. Paste them into
-**Settings → Automations & scenes → ⋮ → Edit in YAML**, or append to your
-`automations.yaml`. Replace the `red_bull_sandbox` slug as needed.
+Each raises a **persistent notification** and also pushes to a phone via
+`notify.mobile_app_bart_iphone15`. To target a different device, replace that
+service name throughout the file; to drop phone push, delete the second
+`notify.*` action in each automation. Paste them into **Settings → Automations &
+scenes → ⋮ → Edit in YAML**, or append to your `automations.yaml`. Replace the
+`red_bull_sandbox` slug as needed.
 
 The example dashboard's **Trends** section also includes two `statistics-graph`
 cards (totals over 90 days, ACS backlog over 30 days). These use Home

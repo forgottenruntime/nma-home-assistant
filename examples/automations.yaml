@@ -11,14 +11,11 @@
 #
 #   Replace the `red_bull_sandbox` slug with your own company slug if different.
 #
-# ── Phone push (optional) ───────────────────────────────────────────────────
-#   Every alert raises a persistent notification out of the box — no setup.
-#   To ALSO push to your phone, make these find-and-replace passes on this file:
-#     1. Find your notify service in Developer Tools → Actions → type "notify."
-#        (e.g. notify.mobile_app_bart_iphone).
-#     2. Replace  notify.mobile_app_your_phone  →  <your service>.
-#     3. Replace  "#@ "  (hash, at, space)  →  ""  (nothing) — this uncomments
-#        the push action in every automation at once.
+# ── Phone push ──────────────────────────────────────────────────────────────
+#   Each alert raises a persistent notification AND pushes to
+#   notify.mobile_app_bart_iphone15. To use a different phone, replace that
+#   service name throughout this file. To disable phone push, delete the
+#   second `- service: notify.mobile_app_bart_iphone15` block in each automation.
 
 # --------------------------------------------------------------------------- #
 # 1. Any credential moved into a blocked state
@@ -44,13 +41,13 @@
           by platform: {{ states('sensor.red_bull_sandbox_credentials_blocked_by_platform') }},
           by ACS: {{ states('sensor.red_bull_sandbox_credentials_blocked_by_acs') }},
           person blocked by ACS: {{ states('sensor.red_bull_sandbox_credentials_person_blocked_by_acs') }}.
-    #@ - service: notify.mobile_app_your_phone
-    #@   data:
-    #@     title: "NMA: credentials blocked"
-    #@     message: >-
-    #@       Blocked — platform {{ states('sensor.red_bull_sandbox_credentials_blocked_by_platform') }},
-    #@       ACS {{ states('sensor.red_bull_sandbox_credentials_blocked_by_acs') }},
-    #@       person {{ states('sensor.red_bull_sandbox_credentials_person_blocked_by_acs') }}.
+    - service: notify.mobile_app_bart_iphone15
+      data:
+        title: "NMA: credentials blocked"
+        message: >-
+          Blocked — platform {{ states('sensor.red_bull_sandbox_credentials_blocked_by_platform') }},
+          ACS {{ states('sensor.red_bull_sandbox_credentials_blocked_by_acs') }},
+          person {{ states('sensor.red_bull_sandbox_credentials_person_blocked_by_acs') }}.
 
 # --------------------------------------------------------------------------- #
 # 2. UAP migration failures (credentials or people)
@@ -74,12 +71,12 @@
           Migration failures —
           credentials: {{ states('sensor.red_bull_sandbox_credentials_uap_migration_failed') }},
           people: {{ states('sensor.red_bull_sandbox_people_uap_migration_failed') }}.
-    #@ - service: notify.mobile_app_your_phone
-    #@   data:
-    #@     title: "NMA: UAP migration failed"
-    #@     message: >-
-    #@       Migration failed — credentials {{ states('sensor.red_bull_sandbox_credentials_uap_migration_failed') }},
-    #@       people {{ states('sensor.red_bull_sandbox_people_uap_migration_failed') }}.
+    - service: notify.mobile_app_bart_iphone15
+      data:
+        title: "NMA: UAP migration failed"
+        message: >-
+          Migration failed — credentials {{ states('sensor.red_bull_sandbox_credentials_uap_migration_failed') }},
+          people {{ states('sensor.red_bull_sandbox_people_uap_migration_failed') }}.
 
 # --------------------------------------------------------------------------- #
 # 3. People blocked or removed by ACS
@@ -102,12 +99,12 @@
         message: >-
           People blocked by ACS: {{ states('sensor.red_bull_sandbox_people_blocked_by_acs') }},
           removed by ACS: {{ states('sensor.red_bull_sandbox_people_removed_by_acs') }}.
-    #@ - service: notify.mobile_app_your_phone
-    #@   data:
-    #@     title: "NMA: people blocked/removed"
-    #@     message: >-
-    #@       People blocked {{ states('sensor.red_bull_sandbox_people_blocked_by_acs') }},
-    #@       removed {{ states('sensor.red_bull_sandbox_people_removed_by_acs') }}.
+    - service: notify.mobile_app_bart_iphone15
+      data:
+        title: "NMA: people blocked/removed"
+        message: >-
+          People blocked {{ states('sensor.red_bull_sandbox_people_blocked_by_acs') }},
+          removed {{ states('sensor.red_bull_sandbox_people_removed_by_acs') }}.
 
 # --------------------------------------------------------------------------- #
 # 4. ACS WebSocket down for more than 5 minutes
@@ -128,10 +125,10 @@
         notification_id: nma_acs_websocket_down
         title: "NMA: ACS WebSocket down"
         message: "The ACS WebSocket has been down for 5 minutes."
-    #@ - service: notify.mobile_app_your_phone
-    #@   data:
-    #@     title: "NMA: ACS WebSocket down"
-    #@     message: "The ACS WebSocket has been down for 5 minutes."
+    - service: notify.mobile_app_bart_iphone15
+      data:
+        title: "NMA: ACS WebSocket down"
+        message: "The ACS WebSocket has been down for 5 minutes."
 
 # --------------------------------------------------------------------------- #
 # 5. API unreachable for more than 10 minutes
@@ -154,12 +151,12 @@
         message: >-
           The NMA API has been unreachable for 10 minutes.
           Last error: {{ state_attr('binary_sensor.red_bull_sandbox_api_reachable', 'last_error') }}
-    #@ - service: notify.mobile_app_your_phone
-    #@   data:
-    #@     title: "NMA: API unreachable"
-    #@     message: >-
-    #@       NMA API unreachable for 10 min.
-    #@       Last error: {{ state_attr('binary_sensor.red_bull_sandbox_api_reachable', 'last_error') }}
+    - service: notify.mobile_app_bart_iphone15
+      data:
+        title: "NMA: API unreachable"
+        message: >-
+          NMA API unreachable for 10 min.
+          Last error: {{ state_attr('binary_sensor.red_bull_sandbox_api_reachable', 'last_error') }}
 
 # --------------------------------------------------------------------------- #
 # 6. ACS WebSocket message backlog building up
@@ -182,9 +179,9 @@
         message: >-
           {{ states('sensor.red_bull_sandbox_acs_websocket_pending_messages') }}
           messages pending on the ACS WebSocket for over 10 minutes.
-    #@ - service: notify.mobile_app_your_phone
-    #@   data:
-    #@     title: "NMA: ACS message backlog"
-    #@     message: >-
-    #@       {{ states('sensor.red_bull_sandbox_acs_websocket_pending_messages') }}
-    #@       messages pending on the ACS WebSocket for over 10 minutes.
+    - service: notify.mobile_app_bart_iphone15
+      data:
+        title: "NMA: ACS message backlog"
+        message: >-
+          {{ states('sensor.red_bull_sandbox_acs_websocket_pending_messages') }}
+          messages pending on the ACS WebSocket for over 10 minutes.
