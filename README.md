@@ -1,7 +1,10 @@
 # NMA Mobile Credentials — Home Assistant integration
 
 <p align="center">
-  <img src="brand/logo@2x.png" alt="NMA Mobile Credentials" width="440">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/forgottenruntime/nma-home-assistant/main/custom_components/nma/brand/dark_logo@2x.png">
+    <img src="https://raw.githubusercontent.com/forgottenruntime/nma-home-assistant/main/custom_components/nma/brand/logo@2x.png" alt="NMA Mobile Credentials" width="440">
+  </picture>
 </p>
 
 A HACS-installable Home Assistant custom component that wraps the
@@ -289,6 +292,27 @@ data:
   raising `page_size`.
 - Per-Person/Per-Credential entities are *disabled by default* — they're
   intended for spot-checking the API, not as a production telemetry firehose.
+
+## Branding / logo
+
+This integration ships its own brand images in
+[`custom_components/nma/brand/`](custom_components/nma/brand) (`icon`, `logo`,
+`dark_logo`, plus `@2x` variants). On **Home Assistant 2026.3+** these are
+served by the local brands proxy at `/api/brands/integration/nma/icon.png`, so
+the logo shows on the **Integrations page and device cards** — no
+`home-assistant/brands` PR needed (that repo no longer accepts custom-integration
+submissions).
+
+> Note: the small icon in the **HACS store listing** may still appear blank.
+> That's a known HACS bug ([hacs/integration#5171](https://github.com/hacs/integration/issues/5171))
+> where HACS hasn't yet adopted the local brands proxy — unrelated to this
+> integration. The HA UI itself shows the logo correctly.
+
+To regenerate the artwork:
+
+```bash
+python3 scripts/make_brand.py
+```
 
 ## License
 
