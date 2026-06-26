@@ -293,6 +293,31 @@ data:
 - Per-Person/Per-Credential entities are *disabled by default* — they're
   intended for spot-checking the API, not as a production telemetry firehose.
 
+## Troubleshooting
+
+### `server_unavailable` / 502 / 503 / 504 when adding the integration
+
+A `502 Bad Gateway` (or 503/504) means you **did** reach a server — a reverse
+proxy / load balancer answered — but it could not reach the NMA API backend
+behind it. This is a **server-side** condition; the integration cannot turn it
+into a success. Diagnose from a shell (or the HA terminal add-on):
+
+```bash
+# Replace with the exact Base URL + a real company UUID you used.
+curl -i -H "Authorization: Bearer <token>" \
+  https://<your-base-url>/api/admin/companies/<company-uuid>
+```
+
+- **Still 502/503/504** → the backend is down, restarting, or the proxy is
+  mis-routing. Wait and retry, or check with whoever runs the API. Confirm the
+  Base URL points at the API host, not a generic web frontend.
+- **200 + JSON** → the API is fine now; re-add the integration (it auto-retries
+  on the next poll anyway).
+- **401/403** → token problem. **404** → wrong company ID or path.
+
+Since v0.1.3 the integration logs a concise `[502] Bad Gateway` instead of the
+full HTML error page.
+
 ## Branding / logo
 
 This integration ships its own brand images in
