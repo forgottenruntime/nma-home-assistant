@@ -439,13 +439,19 @@ To regenerate the artwork:
 python3 scripts/make_brand.py
 ```
 
-## API feature requests
+## API feature requests & client-dashboard feasibility
 
-Some things this integration would like to show aren't available from the NMA
-API yet (exact device models, status-change timestamps, a summary endpoint,
-webhooks, …). They're collected in
-[`docs/api-feature-requests.md`](docs/api-feature-requests.md) — a document you
-can forward to the API supplier.
+Some things a monitoring dashboard would like to show aren't available from the
+NMA API yet (exact device models / OS version / serial, status-change
+timestamps, a summary endpoint, health metrics, webhooks, …). Two documents
+capture this:
+
+- [`docs/api-feature-requests.md`](docs/api-feature-requests.md) — a prioritised
+  list of API gaps with suggested schemas, ready to forward to the supplier.
+- [`docs/client-dashboard-feasibility.md`](docs/client-dashboard-feasibility.md)
+  — maps a client's requested dashboard (health, alerts, charts, filters,
+  30-second refresh, roles, KPI API) onto what HA can do today (✅ / 🟡 / ❌) and
+  which API gap blocks each missing piece.
 
 ## License
 
