@@ -411,6 +411,25 @@ class TotalCredentialsSensor(_NmaBaseSensor):
 # (and the recorder row) from growing unbounded on large buckets.
 _MAX_MEMBERS = 50
 
+# Friendly device labels derived from (platform, device_type). The API only
+# distinguishes PHONE vs WEARABLE and the platform; these labels are a
+# best-effort human-readable interpretation (e.g. an Apple wearable is an
+# Apple Watch). Unknown combinations fall back to "<Platform> <DeviceType>".
+_DEVICE_LABELS = {
+    (Platform.APPLE, DeviceType.PHONE): "iPhone",
+    (Platform.APPLE, DeviceType.WEARABLE): "Apple Watch",
+    (Platform.GOOGLE, DeviceType.PHONE): "Android phone",
+    (Platform.GOOGLE, DeviceType.WEARABLE): "Wear OS watch",
+    (Platform.UAP, DeviceType.PHONE): "Phone (UAP)",
+    (Platform.UAP, DeviceType.WEARABLE): "Wearable (UAP)",
+}
+
+
+def _device_label(platform: Platform, device_type: DeviceType) -> str:
+    return _DEVICE_LABELS.get(
+        (platform, device_type), f"{platform.value} {device_type.value}"
+    )
+
 
 class _CountSensor(_NmaBaseSensor):
     _attr_state_class = SensorStateClass.MEASUREMENT
@@ -451,8 +470,21 @@ class _CountSensor(_NmaBaseSensor):
         if not matches:
             return {}
         if self._source == "people":
+            # Map person id -> their device labels (joined from credentials).
+            by_person: Dict[str, list] = {}
+            data = self.coordinator.data
+            if data:
+                for cred in data.credentials:
+                    by_person.setdefault(str(cred.person.id), []).append(
+                        _device_label(cred.platform, cred.device_type)
+                    )
             members = [
-                {"name": p.name, "email": p.email, "id": str(p.id)}
+                {
+                    "name": p.name,
+                    "email": p.email,
+                    "id": str(p.id),
+                    "devices": by_person.get(str(p.id), []),
+                }
                 for p in matches[:_MAX_MEMBERS]
             ]
         else:
@@ -461,6 +493,9 @@ class _CountSensor(_NmaBaseSensor):
                     "number": c.number,
                     "person": c.person.name,
                     "id": str(c.id),
+                    "device_type": c.device_type.value,
+                    "platform": c.platform.value,
+                    "device": _device_label(c.platform, c.device_type),
                 }
                 for c in matches[:_MAX_MEMBERS]
             ]
@@ -645,6 +680,14 @@ class PersonSensor(CoordinatorEntity[NmaCoordinator], SensorEntity):
         p = self._person()
         if not p:
             return {}
+        data = self.coordinator.data
+        devices = []
+        if data:
+            devices = [
+                _device_label(c.platform, c.device_type)
+                for c in data.credentials
+                if str(c.person.id) == self._person_id
+            ]
         return {
             "id": str(p.id),
             "name": p.name,
@@ -656,6 +699,7 @@ class PersonSensor(CoordinatorEntity[NmaCoordinator], SensorEntity):
                 p.creation_date.isoformat() if p.creation_date else None
             ),
             "platforms": [pl.value for pl in p.platforms],
+            "devices": devices,
             "uap_migration_status": (
                 p.uap_migration_status.value if p.uap_migration_status else None
             ),

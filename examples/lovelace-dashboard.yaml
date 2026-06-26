@@ -365,6 +365,39 @@ views:
                 name: UAP
 
       # ------------------------------------------------------------------ #
+      # Devices — what kind of device each person carries.
+      #   The API only knows PHONE vs WEARABLE + platform; friendly labels
+      #   (iPhone, Apple Watch, ...) are derived by the integration (v0.1.6+)
+      #   and exposed on the credential `members` attribute and per person.
+      #   Honours the Anonymise names toggle.
+      # ------------------------------------------------------------------ #
+      - type: grid
+        cards:
+          - type: heading
+            heading: Devices
+            icon: mdi:devices
+          - type: markdown
+            content: |
+              {% set anon = is_state('input_boolean.nma_anonymise','on') %}
+              {%- set all = (state_attr('sensor.red_bull_sandbox_credentials_on_phone','members') or []) + (state_attr('sensor.red_bull_sandbox_credentials_on_wearable','members') or []) -%}
+              {% if all %}**By device type**
+              {% for device, items in all | groupby('device') %}- **{{ device }}**: {{ items | list | length }}
+              {% endfor %}
+              {%- set watches = state_attr('sensor.red_bull_sandbox_credentials_on_wearable','members') or [] -%}
+              {% if watches %}
+              **Who has a wearable**
+              {% for m in watches %}- {{ (m.person.split() | map('first') | join('. ')) ~ '.' if anon else m.person }} — {{ m.device }}
+              {% endfor %}{% endif %}{% else %}No device data yet.{% endif %}
+          - type: tile
+            entity: sensor.red_bull_sandbox_credentials_on_phone
+            name: Phones
+            icon: mdi:cellphone
+          - type: tile
+            entity: sensor.red_bull_sandbox_credentials_on_wearable
+            name: Wearables
+            icon: mdi:watch
+
+      # ------------------------------------------------------------------ #
       # Individual credentials (per-credential sensors, enabled on demand)
       # ------------------------------------------------------------------ #
       - type: grid

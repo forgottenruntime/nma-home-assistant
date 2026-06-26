@@ -33,8 +33,10 @@ Home Assistant entities. Built primarily as a **test/debug harness** for the API
 - **Credentials** sensors: total count, plus counts per `CredentialStatus`,
   per `Platform`, per `DeviceType`, per `UapMigrationStatus`.
 - Every breakdown count sensor also carries a **`members` attribute** listing
-  who is in that bucket (people: name/email/id; credentials: number/person/id),
-  capped at 50 — so you can see *which* people are blocked, not just how many.
+  who is in that bucket (people: name/email/id/devices; credentials:
+  number/person/id/device_type/platform/device), capped at 50 — so you can see
+  *which* people are blocked, and *what device* (iPhone, Apple Watch, …) they
+  carry, not just how many.
 - **One sensor per Person** and **one per Credential** (disabled by default
   in the entity registry — enable from the device page when you need them).
 - Diagnostic sensors: last successful update timestamp, last update
@@ -245,6 +247,10 @@ Highlights:
 - **Trends** split into recent history graphs and long-term statistics graphs,
   including a **People blocked / removed** trend (7-day history + 90-day stats)
   so you can see when access was revoked.
+- A **Devices** card showing how many of each device type people carry (iPhone,
+  Apple Watch, Android phone, Wear OS watch…) and who has a wearable. Labels are
+  derived from the credential's `device_type` (PHONE/WEARABLE) + `platform`
+  (APPLE/GOOGLE/UAP) — the API does not expose exact model names.
 
 To use it: **Dashboard → Edit → ⋮ → Raw configuration editor**, paste it in, then
 find-and-replace `red_bull_sandbox` with your own company slug (the slugified
