@@ -234,17 +234,32 @@ Highlights:
   amber / red bands) instead of a plain text total.
 - An **Alerts** card listing the six example automations with their
   *last-triggered* time, so you can see at a glance which fired and when.
-- A **Blocked / flagged** section that stays hidden until something is actually
+- A **Blocked / flagged** card that stays hidden until something is actually
   blocked, removed or migration-failed — then it appears and lists the affected
-  people (name + email) and credentials (number + person), via section-level
-  `visibility` and the `members` attribute.
-- **Trends** split into recent history graphs and long-term statistics graphs.
+  people (name + email) and credentials (number + person), via a `conditional`
+  card and the `members` attribute.
+- An **Anonymise names** toggle that masks every first/last name on the
+  dashboard to initials (e.g. *Gerald Kreditsch → G. K.*) and hides emails —
+  handy when screen-sharing. Requires the `input_boolean.nma_anonymise` helper
+  (see [`examples/helpers.yaml`](examples/helpers.yaml)).
+- **Trends** split into recent history graphs and long-term statistics graphs,
+  including a **People blocked / removed** trend (7-day history + 90-day stats)
+  so you can see when access was revoked.
 
 To use it: **Dashboard → Edit → ⋮ → Raw configuration editor**, paste it in, then
 find-and-replace `red_bull_sandbox` with your own company slug (the slugified
 device name) if it differs. The two gauges hard-code `max: 300` — set each to
 your own `max_credentials` / `max_people`. The Alerts card assumes the example
 automations are loaded (entity IDs are their slugified aliases).
+
+### Anonymise toggle setup
+
+The **Anonymise names** tile needs a one-time helper. Either add
+[`examples/helpers.yaml`](examples/helpers.yaml) to your `configuration.yaml` and
+restart, or create it in the UI: **Settings → Devices & Services → Helpers →
+Create Helper → Toggle**, named so the entity becomes `input_boolean.nma_anonymise`.
+When on, names render as initials and emails are hidden everywhere on the
+dashboard; the underlying sensors and their `members` attribute are unchanged.
 
 ## Example automations / alerts
 

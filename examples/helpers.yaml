@@ -1,0 +1,13 @@
+# NMA Mobile Credentials — helper entities
+#
+# The dashboard's "Anonymise names" toggle needs an input_boolean helper.
+# Add this to your configuration.yaml (or merge into an existing
+# `input_boolean:` block), then restart Home Assistant.
+#
+# Alternatively create it via the UI:
+#   Settings → Devices & Services → Helpers → Create Helper → Toggle
+#   Name: "NMA anonymise names"  →  entity becomes input_boolean.nma_anonymise
+input_boolean:
+  nma_anonymise:
+    name: NMA anonymise names
+    icon: mdi:incognito

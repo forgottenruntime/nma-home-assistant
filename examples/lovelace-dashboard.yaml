@@ -23,21 +23,27 @@ views:
       #   Green when connectivity is up and no problem counters are set;
       #   red and lists the problems (with names) otherwise.
       #   Names come from the `members` attribute on the breakdown sensors
-      #   (NMA integration v0.1.5+). No HACS deps (markdown card).
+      #   (NMA integration v0.1.5+). Toggle input_boolean.nma_anonymise to
+      #   mask names to initials (see examples/helpers.yaml). No HACS deps.
       # ------------------------------------------------------------------ #
       - type: grid
         cards:
           - type: markdown
             content: |
               {% macro names(entities, attr) -%}
-              {%- set ns = namespace(v=[]) -%}
+              {%- set anon = is_state('input_boolean.nma_anonymise','on') -%}
+              {%- set ns = namespace(seen=[], out=[]) -%}
               {%- for e in entities -%}
                 {%- for m in (state_attr(e, 'members') or []) -%}
-                  {%- set ns.v = ns.v + [m[attr]] -%}
+                  {%- set val = m[attr] -%}
+                  {%- if val and val not in ns.seen -%}
+                    {%- set ns.seen = ns.seen + [val] -%}
+                    {%- if anon -%}{%- set val = (val.split() | map('first') | join('. ')) ~ '.' -%}{%- endif -%}
+                    {%- set ns.out = ns.out + [val] -%}
+                  {%- endif -%}
                 {%- endfor -%}
               {%- endfor -%}
-              {%- set u = ns.v | unique | list -%}
-              {{- u[:10] | join(', ') }}{% if u | length > 10 %} +{{ u | length - 10 }} more{% endif %}
+              {{- ns.out[:10] | join(', ') }}{% if ns.out | length > 10 %} +{{ ns.out | length - 10 }} more{% endif %}
               {%- endmacro -%}
               {% set p = namespace(items=[]) %}
               {% if is_state('binary_sensor.red_bull_sandbox_api_reachable','off') %}{% set p.items = p.items + ['API unreachable'] %}{% endif %}
@@ -59,6 +65,12 @@ views:
 
               ') }}{% else %}## ✅ NMA — all systems OK
               Connectivity up · no blocked or failed credentials or people.{% endif %}
+          # Toggle to mask first/last names to initials across the dashboard.
+          # Requires the input_boolean.nma_anonymise helper (examples/helpers.yaml).
+          - type: tile
+            entity: input_boolean.nma_anonymise
+            name: Anonymise names
+            icon: mdi:incognito
 
       # ------------------------------------------------------------------ #
       # Company overview
@@ -215,23 +227,32 @@ views:
               type: markdown
               content: |
                 ## ⚠️ Blocked / flagged
+                {% set anon = is_state('input_boolean.nma_anonymise','on') %}
                 {% macro people(entities) -%}
-                {%- set ns = namespace(rows=[]) -%}
+                {%- set ns = namespace(seen=[], rows=[]) -%}
                 {%- for e in entities -%}
                   {%- for m in (state_attr(e, 'members') or []) -%}
-                    {%- set ns.rows = ns.rows + ['- **' ~ m.name ~ '**' ~ (' <' ~ m.email ~ '>' if m.email else '')] -%}
+                    {%- if m.id not in ns.seen -%}
+                      {%- set ns.seen = ns.seen + [m.id] -%}
+                      {%- set nm = (m.name.split() | map('first') | join('. ')) ~ '.' if anon else m.name -%}
+                      {%- set ns.rows = ns.rows + ['- **' ~ nm ~ '**' ~ (' <' ~ m.email ~ '>' if (m.email and not anon) else '')] -%}
+                    {%- endif -%}
                   {%- endfor -%}
                 {%- endfor -%}
-                {{- ns.rows | unique | join('\n') -}}
+                {{- ns.rows | join('\n') -}}
                 {%- endmacro -%}
                 {% macro creds(entities) -%}
-                {%- set ns = namespace(rows=[]) -%}
+                {%- set ns = namespace(seen=[], rows=[]) -%}
                 {%- for e in entities -%}
                   {%- for m in (state_attr(e, 'members') or []) -%}
-                    {%- set ns.rows = ns.rows + ['- #' ~ m.number ~ ' — ' ~ m.person] -%}
+                    {%- if m.id not in ns.seen -%}
+                      {%- set ns.seen = ns.seen + [m.id] -%}
+                      {%- set pn = (m.person.split() | map('first') | join('. ')) ~ '.' if anon else m.person -%}
+                      {%- set ns.rows = ns.rows + ['- #' ~ m.number ~ ' — ' ~ pn] -%}
+                    {%- endif -%}
                   {%- endfor -%}
                 {%- endfor -%}
-                {{- ns.rows | unique | join('\n') -}}
+                {{- ns.rows | join('\n') -}}
                 {%- endmacro -%}
                 {% set pb = people(['sensor.red_bull_sandbox_people_blocked_by_acs','sensor.red_bull_sandbox_people_removed_by_acs']) | trim %}
                 {% set pm = people(['sensor.red_bull_sandbox_people_uap_migration_failed']) | trim %}
@@ -394,6 +415,14 @@ views:
             entities:
               - entity: sensor.red_bull_sandbox_last_update_duration
                 name: Update duration
+          - type: history-graph
+            title: People blocked / removed (7 days)
+            hours_to_show: 168
+            entities:
+              - entity: sensor.red_bull_sandbox_people_blocked_by_acs
+                name: Blocked by ACS
+              - entity: sensor.red_bull_sandbox_people_removed_by_acs
+                name: Removed by ACS
 
       # ------------------------------------------------------------------ #
       # Trends — long term (statistics, survive recorder purges)
@@ -426,6 +455,18 @@ views:
             entities:
               - entity: sensor.red_bull_sandbox_acs_websocket_pending_messages
                 name: Pending messages
+          - type: statistics-graph
+            title: People blocked / removed (90 days)
+            period: day
+            days_to_show: 90
+            stat_types:
+              - max
+              - mean
+            entities:
+              - entity: sensor.red_bull_sandbox_people_blocked_by_acs
+                name: Blocked by ACS
+              - entity: sensor.red_bull_sandbox_people_removed_by_acs
+                name: Removed by ACS
 
       # ------------------------------------------------------------------ #
       # Diagnostics
