@@ -439,6 +439,14 @@ To regenerate the artwork:
 python3 scripts/make_brand.py
 ```
 
+## API feature requests
+
+Some things this integration would like to show aren't available from the NMA
+API yet (exact device models, status-change timestamps, a summary endpoint,
+webhooks, …). They're collected in
+[`docs/api-feature-requests.md`](docs/api-feature-requests.md) — a document you
+can forward to the API supplier.
+
 ## License
 
 [MIT](LICENSE) © Bart Vervueren.
