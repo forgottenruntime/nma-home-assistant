@@ -263,12 +263,37 @@ automations are loaded (entity IDs are their slugified aliases).
 
 ### Anonymise toggle setup
 
-The **Anonymise names** tile needs a one-time helper. Either add
+The **Anonymise names** button needs a one-time helper. Either add
 [`examples/helpers.yaml`](examples/helpers.yaml) to your `configuration.yaml` and
 restart, or create it in the UI: **Settings → Devices & Services → Helpers →
 Create Helper → Toggle**, named so the entity becomes `input_boolean.nma_anonymise`.
 When on, names render as initials and emails are hidden everywhere on the
 dashboard; the underlying sensors and their `members` attribute are unchanged.
+
+The button card is:
+
+```yaml
+- type: button
+  entity: input_boolean.nma_anonymise
+  name: Anonymise names
+  icon: mdi:incognito
+  show_state: true
+  tap_action:
+    action: toggle
+```
+
+**Button not toggling? Two common reasons:**
+
+1. **You're in the dashboard editor.** In edit/preview mode, clicking the button
+   opens its config instead of toggling. Save and exit edit mode, then click it
+   on the live dashboard.
+2. **The helper doesn't exist yet.** Without `input_boolean.nma_anonymise` the
+   button has nothing to toggle. Create it (above).
+
+To verify it works: open **Developer Tools → States**, filter
+`input_boolean.nma_anonymise`, then click the button on the live dashboard and
+watch the state flip `off ⇄ on`. You can also toggle it from
+**Settings → Devices & Services → Helpers → NMA anonymise names**.
 
 ## Example automations / alerts
 
