@@ -1,0 +1,213 @@
+# NMA Mobile Credentials — example dashboard
+#
+# How to use:
+#   Dashboard → Edit dashboard → ⋮ (top-right) → Raw configuration editor
+#   → paste this in (or merge the `views:` list).
+#
+# This example targets a company whose entities are prefixed
+# `red_bull_sandbox`. If your company slug differs, find-and-replace
+# `red_bull_sandbox` with yours (it is the slugified device name).
+views:
+  - title: NMA
+    path: nma
+    type: sections
+    max_columns: 3
+    sections:
+      # ------------------------------------------------------------------ #
+      # Company overview
+      # ------------------------------------------------------------------ #
+      - type: grid
+        cards:
+          - type: heading
+            heading: Company
+            icon: mdi:office-building
+          - type: tile
+            entity: sensor.red_bull_sandbox_company_status
+            name: Status
+          - type: tile
+            entity: sensor.red_bull_sandbox_company_type
+            name: Type
+          - type: tile
+            entity: sensor.red_bull_sandbox_acs
+            name: ACS
+          - type: tile
+            entity: sensor.red_bull_sandbox_uap_migration_status
+            name: UAP migration
+          - type: tile
+            entity: sensor.red_bull_sandbox_enabled_platforms
+            name: Enabled platforms
+          - type: tile
+            entity: sensor.red_bull_sandbox_use_app_key
+            name: Uses app key
+
+      # ------------------------------------------------------------------ #
+      # Connectivity & health
+      # ------------------------------------------------------------------ #
+      - type: grid
+        cards:
+          - type: heading
+            heading: Connectivity & health
+            icon: mdi:lan-connect
+          - type: tile
+            entity: binary_sensor.red_bull_sandbox_api_reachable
+            name: API reachable
+          - type: tile
+            entity: binary_sensor.red_bull_sandbox_acs_websocket
+            name: ACS WebSocket
+          - type: tile
+            entity: sensor.red_bull_sandbox_acs_websocket_pending_messages
+            name: Pending messages
+          - type: tile
+            entity: sensor.red_bull_sandbox_acs_websocket_up_since
+            name: WebSocket up since
+          - type: tile
+            entity: sensor.red_bull_sandbox_last_successful_update
+            name: Last update
+          - type: tile
+            entity: sensor.red_bull_sandbox_last_update_duration
+            name: Update duration
+
+      # ------------------------------------------------------------------ #
+      # Credentials
+      # ------------------------------------------------------------------ #
+      - type: grid
+        cards:
+          - type: heading
+            heading: Credentials
+            icon: mdi:cellphone-key
+          - type: markdown
+            content: >
+              {% set t = states('sensor.red_bull_sandbox_credentials_total')|int(0)
+              %}{% set m = states('sensor.red_bull_sandbox_max_credentials')|int(0)
+              %}## {{ t }}{% if m %} / {{ m }} credentials · {{ (100*t/m)|round(1) }}%
+              used{% else %} credentials{% endif %}
+          - type: entities
+            title: Breakdown
+            show_header_toggle: false
+            state_color: true
+            entities:
+              - type: section
+                label: By status
+              - entity: sensor.red_bull_sandbox_credentials_active
+                name: Active
+              - entity: sensor.red_bull_sandbox_credentials_pending_for_platform
+                name: Pending for platform
+              - entity: sensor.red_bull_sandbox_credentials_pending_for_acs
+                name: Pending for ACS
+              - entity: sensor.red_bull_sandbox_credentials_unlinked_by_platform
+                name: Unlinked by platform
+              - entity: sensor.red_bull_sandbox_credentials_blocked_by_platform
+                name: Blocked by platform
+              - entity: sensor.red_bull_sandbox_credentials_blocked_by_acs
+                name: Blocked by ACS
+              - entity: sensor.red_bull_sandbox_credentials_person_blocked_by_acs
+                name: Person blocked by ACS
+              - type: section
+                label: By platform
+              - entity: sensor.red_bull_sandbox_credentials_on_apple
+                name: Apple
+              - entity: sensor.red_bull_sandbox_credentials_on_google
+                name: Google
+              - entity: sensor.red_bull_sandbox_credentials_on_uap
+                name: UAP
+              - type: section
+                label: By device
+              - entity: sensor.red_bull_sandbox_credentials_on_phone
+                name: Phone
+              - entity: sensor.red_bull_sandbox_credentials_on_wearable
+                name: Wearable
+              - type: section
+                label: By migration status
+              - entity: sensor.red_bull_sandbox_credentials_uap_legacy
+                name: Legacy
+              - entity: sensor.red_bull_sandbox_credentials_uap_migrating
+                name: Migrating
+              - entity: sensor.red_bull_sandbox_credentials_uap_migration_failed
+                name: Migration failed
+              - entity: sensor.red_bull_sandbox_credentials_uap_uap
+                name: UAP
+
+      # ------------------------------------------------------------------ #
+      # People
+      # ------------------------------------------------------------------ #
+      - type: grid
+        cards:
+          - type: heading
+            heading: People
+            icon: mdi:account-multiple
+          - type: markdown
+            content: >
+              {% set t = states('sensor.red_bull_sandbox_people_total')|int(0)
+              %}{% set m = states('sensor.red_bull_sandbox_max_people')|int(0)
+              %}## {{ t }}{% if m %} / {{ m }} people · {{ (100*t/m)|round(1) }}%
+              used{% else %} people{% endif %}
+          - type: entities
+            title: Breakdown
+            show_header_toggle: false
+            state_color: true
+            entities:
+              - type: section
+                label: By status
+              - entity: sensor.red_bull_sandbox_people_active
+                name: Active
+              - entity: sensor.red_bull_sandbox_people_inactive
+                name: Inactive
+              - entity: sensor.red_bull_sandbox_people_blocked_by_acs
+                name: Blocked by ACS
+              - entity: sensor.red_bull_sandbox_people_removed_by_acs
+                name: Removed by ACS
+              - type: section
+                label: By platform
+              - entity: sensor.red_bull_sandbox_people_on_apple
+                name: Apple
+              - entity: sensor.red_bull_sandbox_people_on_google
+                name: Google
+              - entity: sensor.red_bull_sandbox_people_on_uap
+                name: UAP
+              - type: section
+                label: By migration status
+              - entity: sensor.red_bull_sandbox_people_uap_legacy
+                name: Legacy
+              - entity: sensor.red_bull_sandbox_people_uap_migrating
+                name: Migrating
+              - entity: sensor.red_bull_sandbox_people_uap_migration_failed
+                name: Migration failed
+              - entity: sensor.red_bull_sandbox_people_uap_uap
+                name: UAP
+
+      # ------------------------------------------------------------------ #
+      # Individual credentials (per-credential sensors, enabled on demand)
+      # ------------------------------------------------------------------ #
+      - type: grid
+        cards:
+          - type: heading
+            heading: Individual credentials
+            icon: mdi:card-account-details
+          - type: tile
+            entity: sensor.red_bull_sandbox_nma_credential_1038024114_bart_sandbox_vervueren
+            name: Bart · #1038024114
+          - type: tile
+            entity: sensor.red_bull_sandbox_nma_credential_9669142438_bart_sandbox_vervueren
+            name: Bart · #9669142438
+
+      # ------------------------------------------------------------------ #
+      # Diagnostics
+      # ------------------------------------------------------------------ #
+      - type: grid
+        cards:
+          - type: heading
+            heading: Diagnostics
+            icon: mdi:information-outline
+          - type: entities
+            show_header_toggle: false
+            entities:
+              - entity: sensor.red_bull_sandbox_tenant_id
+                name: Tenant ID
+              - entity: sensor.red_bull_sandbox_tci_value
+                name: TCI value
+              - entity: sensor.red_bull_sandbox_df_name
+                name: DF name
+              - entity: sensor.red_bull_sandbox_max_people
+                name: Max people
+              - entity: sensor.red_bull_sandbox_max_credentials
+                name: Max credentials

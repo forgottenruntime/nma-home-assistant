@@ -213,6 +213,19 @@ If you run **multiple config entries that share one token**, they share the real
 30/min budget. In that case raise `scan_interval`, disable `fetch_people` /
 `fetch_credentials` where you don't need them, or stagger the entries.
 
+## Example dashboard
+
+A ready-made Lovelace dashboard lives at
+[`examples/lovelace-dashboard.yaml`](examples/lovelace-dashboard.yaml). It groups
+the entities into **Company**, **Connectivity & health**, **Credentials**,
+**People**, **Individual credentials** and **Diagnostics** sections, gives every
+tile a short readable name, and shows credential/people totals as
+`used / limit (%)`.
+
+To use it: **Dashboard → Edit → ⋮ → Raw configuration editor**, paste it in, then
+find-and-replace `red_bull_sandbox` with your own company slug (the slugified
+device name) if it differs.
+
 ## Test against the mock server
 
 The companion repo ships [`examples/demo_mock.py`](../nma-api/examples/demo_mock.py),
