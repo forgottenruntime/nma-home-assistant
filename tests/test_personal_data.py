@@ -133,3 +133,20 @@ async def test_personal_data_on_keeps_everything(hass):
     )
     assert hass.states.get(empty).state == "0"
     assert hass.states.get(empty).attributes["members"] == []
+
+
+async def test_options_flow_opens_and_saves(hass):
+    entry = _entry(personal=True)
+    entry.add_to_hass(hass)
+    with patch("custom_components.nma.NmaApi", FakeApi):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+        result = await hass.config_entries.options.async_init(entry.entry_id)
+        assert result["type"] is FlowResultType.FORM
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], {OPT_PERSONAL_DATA: False}
+        )
+        await hass.async_block_till_done()
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.options[OPT_PERSONAL_DATA] is False

@@ -171,14 +171,15 @@ class NmaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def async_get_options_flow(
         config_entry: config_entries.ConfigEntry,
     ) -> "NmaOptionsFlow":
-        return NmaOptionsFlow(config_entry)
+        return NmaOptionsFlow()
 
 
 class NmaOptionsFlow(config_entries.OptionsFlow):
-    """Options flow: scan interval, page size, personal data, what to fetch."""
+    """Options flow: scan interval, page size, personal data, what to fetch.
 
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        self.config_entry = config_entry
+    Home Assistant sets ``self.config_entry`` itself (2024.12+); assigning it
+    raises on current versions.
+    """
 
     async def async_step_init(
         self, user_input: Optional[Dict[str, Any]] = None

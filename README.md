@@ -435,8 +435,9 @@ data:
 
 ## Caveats
 
-- The vendored `nma_api` package requires **Pydantic v2.5+**. HA 2024.6+
-  ships compatible versions.
+- Requires **Home Assistant 2024.12+** (options flow uses the built-in
+  `config_entry`). The vendored `nma_api` package requires **Pydantic v2.5+**,
+  which those versions ship.
 - The integration runs the sync `requests`-based client in HA's thread
   executor. For large companies, consider lowering the scan interval and
   raising `page_size`.
