@@ -18,6 +18,7 @@ from homeassistant.components.sensor import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -68,8 +69,6 @@ async def async_setup_entry(
         CompanyTciValueSensor(coordinator),
         AcsWsPendingMessagesSensor(coordinator),
         AcsWsSinceSensor(coordinator),
-        TotalPeopleSensor(coordinator),
-        TotalCredentialsSensor(coordinator),
         LastUpdateSensor(coordinator),
         LastUpdateDurationSensor(coordinator),
         AcsWsOutagesSensor(coordinator),
@@ -77,6 +76,24 @@ async def async_setup_entry(
         ApiOutagesSensor(coordinator),
     ]
 
+    if not coordinator.personal_data:
+        # Health-only: no people/credential entities. Drop any left in the
+        # registry from when personal data was on, so names and e-mail
+        # addresses do not linger in entity names or attributes.
+        async_add_entities(entities)
+        keep = {e.unique_id for e in entities}
+        registry = er.async_get(hass)
+        for reg_entry in er.async_entries_for_config_entry(
+            registry, entry.entry_id
+        ):
+            if reg_entry.domain == "sensor" and reg_entry.unique_id not in keep:
+                registry.async_remove(reg_entry.entity_id)
+        return
+
+    entities += [
+        TotalPeopleSensor(coordinator),
+        TotalCredentialsSensor(coordinator),
+    ]
     for status in PersonStatus:
         entities.append(_people_by_status(coordinator, status))
     for platform in Platform:
@@ -189,6 +206,10 @@ class CompanyNameSensor(_NmaBaseSensor):
         if not c:
             return {}
         attrs: Dict[str, Any] = {"id": str(c.id)}
+        if not self.coordinator.personal_data:
+            # Contacts (bill-to, privacy officer, ...) hold names, e-mail
+            # addresses and phone numbers.
+            return attrs
         if c.address:
             attrs["address"] = c.address.model_dump(by_alias=True, exclude_none=True)
         if c.bill_to:
@@ -515,7 +536,7 @@ class _CountSensor(_NmaBaseSensor):
     def extra_state_attributes(self) -> Dict[str, Any]:
         matches = self._matches()
         if not matches:
-            return {}
+            return {"members": []}
         if self._source == "people":
             # Map person id -> their device labels (joined from credentials).
             by_person: Dict[str, list] = {}

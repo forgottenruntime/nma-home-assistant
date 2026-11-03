@@ -16,12 +16,18 @@ OPT_SCAN_INTERVAL = "scan_interval"
 OPT_PAGE_SIZE = "page_size"
 OPT_FETCH_PEOPLE = "fetch_people"
 OPT_FETCH_CREDENTIALS = "fetch_credentials"
+# Personal information (people, credentials, company contacts) on/off.
+# Off = health-only: company status, ACS WebSocket and API reachability.
+OPT_PERSONAL_DATA = "personal_data"
 
 DEFAULT_SCAN_INTERVAL = 60  # seconds
 DEFAULT_PAGE_SIZE = 50  # API recommends no more than 50 items per page
 DEFAULT_TIMEOUT = 30.0
 DEFAULT_FETCH_PEOPLE = True
 DEFAULT_FETCH_CREDENTIALS = True
+# Entries created before this option existed keep their personal data.
+# New entries get the choice in the config flow (unticked by default).
+DEFAULT_PERSONAL_DATA = True
 
 MIN_SCAN_INTERVAL = timedelta(seconds=15)
 

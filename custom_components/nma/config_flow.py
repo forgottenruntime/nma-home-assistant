@@ -20,12 +20,14 @@ from .const import (
     DEFAULT_FETCH_CREDENTIALS,
     DEFAULT_FETCH_PEOPLE,
     DEFAULT_PAGE_SIZE,
+    DEFAULT_PERSONAL_DATA,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     MAX_PAGE_SIZE,
     OPT_FETCH_CREDENTIALS,
     OPT_FETCH_PEOPLE,
     OPT_PAGE_SIZE,
+    OPT_PERSONAL_DATA,
     OPT_SCAN_INTERVAL,
 )
 
@@ -48,6 +50,10 @@ def _user_schema(defaults: Optional[Dict[str, Any]] = None) -> vol.Schema:
             vol.Optional(
                 CONF_VERIFY_SSL, default=defaults.get(CONF_VERIFY_SSL, True)
             ): bool,
+            # Privacy by default: personal information is opt-in.
+            vol.Optional(
+                OPT_PERSONAL_DATA, default=defaults.get(OPT_PERSONAL_DATA, False)
+            ): bool,
         }
     )
 
@@ -64,6 +70,10 @@ def _options_schema(entry: config_entries.ConfigEntry) -> vol.Schema:
                 OPT_PAGE_SIZE,
                 default=o.get(OPT_PAGE_SIZE, DEFAULT_PAGE_SIZE),
             ): vol.All(int, vol.Range(min=1, max=MAX_PAGE_SIZE)),
+            vol.Optional(
+                OPT_PERSONAL_DATA,
+                default=o.get(OPT_PERSONAL_DATA, DEFAULT_PERSONAL_DATA),
+            ): bool,
             vol.Optional(
                 OPT_FETCH_PEOPLE,
                 default=o.get(OPT_FETCH_PEOPLE, DEFAULT_FETCH_PEOPLE),
@@ -91,6 +101,7 @@ class NmaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             token = user_input[CONF_TOKEN].strip()
             company_id_raw = user_input[CONF_COMPANY_ID].strip()
             verify_ssl = bool(user_input.get(CONF_VERIFY_SSL, True))
+            personal_data = bool(user_input.get(OPT_PERSONAL_DATA, False))
 
             try:
                 UUID(company_id_raw)
@@ -145,6 +156,7 @@ class NmaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                             OPT_PAGE_SIZE: DEFAULT_PAGE_SIZE,
                             OPT_FETCH_PEOPLE: DEFAULT_FETCH_PEOPLE,
                             OPT_FETCH_CREDENTIALS: DEFAULT_FETCH_CREDENTIALS,
+                            OPT_PERSONAL_DATA: personal_data,
                         },
                     )
 
@@ -163,7 +175,7 @@ class NmaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class NmaOptionsFlow(config_entries.OptionsFlow):
-    """Options flow: scan interval, page size, what to fetch."""
+    """Options flow: scan interval, page size, personal data, what to fetch."""
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         self.config_entry = config_entry

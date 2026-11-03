@@ -118,8 +118,10 @@ class ApiReachableBinarySensor(
         if d:
             attrs["last_fetched_at"] = d.fetched_at.isoformat()
             attrs["last_fetch_duration_s"] = round(d.duration_s, 3)
-            attrs["people_total"] = d.people_total
-            attrs["credentials_total"] = d.credentials_total
+            if self.coordinator.personal_data:
+                attrs["people_total"] = d.people_total
+                attrs["credentials_total"] = d.credentials_total
+            attrs["personal_data"] = self.coordinator.personal_data
         if self.coordinator.last_exception:
             attrs["last_error"] = str(self.coordinator.last_exception)
         # `next_update_at` for visibility

@@ -12,10 +12,12 @@ from .api import NmaApi, NmaApiError, NmaSnapshot
 from .const import (
     DEFAULT_FETCH_CREDENTIALS,
     DEFAULT_FETCH_PEOPLE,
+    DEFAULT_PERSONAL_DATA,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     OPT_FETCH_CREDENTIALS,
     OPT_FETCH_PEOPLE,
+    OPT_PERSONAL_DATA,
     OPT_SCAN_INTERVAL,
 )
 
@@ -33,6 +35,10 @@ class NmaCoordinator(DataUpdateCoordinator[NmaSnapshot]):
     ) -> None:
         self.entry = entry
         self.api = api
+        # Fixed for the entry's lifetime: changing options reloads the entry.
+        self.personal_data = bool(
+            entry.options.get(OPT_PERSONAL_DATA, DEFAULT_PERSONAL_DATA)
+        )
         scan_interval = int(
             entry.options.get(OPT_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
         )
@@ -44,10 +50,12 @@ class NmaCoordinator(DataUpdateCoordinator[NmaSnapshot]):
         )
 
     async def _async_update_data(self) -> NmaSnapshot:
-        include_people = bool(
+        # Health-only entries never fetch /people or /credentials, so no
+        # personal data reaches Home Assistant (and polls cost 1 request).
+        include_people = self.personal_data and bool(
             self.entry.options.get(OPT_FETCH_PEOPLE, DEFAULT_FETCH_PEOPLE)
         )
-        include_credentials = bool(
+        include_credentials = self.personal_data and bool(
             self.entry.options.get(OPT_FETCH_CREDENTIALS, DEFAULT_FETCH_CREDENTIALS)
         )
         try:

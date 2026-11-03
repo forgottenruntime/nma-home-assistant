@@ -3,12 +3,16 @@
         "step": {
             "user": {
                 "title": "NMA Mobile Credentials",
-                "description": "Connect to the NMA API. Use the development URL while testing.",
+                "description": "Connect to the NMA API. Use the development URL while testing.\n\nChoose whether personal information comes into Home Assistant. Unticked, you only get the overall health of the NMA API: company status, ACS WebSocket and API reachability.",
                 "data": {
                     "base_url": "Base URL (e.g. https://dev.api.example.com)",
                     "token": "Access token (Bearer)",
                     "company_id": "Company ID (UUID)",
-                    "verify_ssl": "Verify TLS certificate"
+                    "verify_ssl": "Verify TLS certificate",
+                    "personal_data": "Include personal information"
+                },
+                "data_description": {
+                    "personal_data": "Names, e-mail addresses, people and credential counts, per-person and per-credential entities, and company contacts. Leave unticked for health only."
                 }
             }
         },
@@ -33,10 +37,14 @@
                 "data": {
                     "scan_interval": "Polling interval (seconds)",
                     "page_size": "Page size for /people and /credentials",
+                    "personal_data": "Include personal information",
                     "fetch_people": "Fetch full people list",
                     "fetch_credentials": "Fetch full credentials list"
                 },
-                "description": "Disable people/credentials fetching if you only care about company status and the ACS WebSocket."
+                "description": "Untick personal information for health only (company status, ACS WebSocket, API reachability). The fetch toggles fine-tune what is fetched when personal information is on.",
+                "data_description": {
+                    "personal_data": "Unticked = health only: no /people or /credentials calls, and people/credential entities are removed. The two fetch toggles below only apply when this is ticked."
+                }
             }
         }
     },
