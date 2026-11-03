@@ -75,12 +75,14 @@ async def test_config_flow_defaults_to_health_only(hass):
     ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"],
-            {"base_url": "https://api.test", "token": "x",
+            {"base_url": "api.test/", "token": "x",
              "company_id": COMPANY_ID},
         )
         await hass.async_block_till_done()
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["options"][OPT_PERSONAL_DATA] is False
+    # No scheme typed: https:// is added.
+    assert result["data"]["base_url"] == "https://api.test"
 
 
 async def test_health_only_has_counts_but_no_personal_data(hass):

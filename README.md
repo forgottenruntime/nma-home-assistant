@@ -182,7 +182,7 @@ You'll be asked for:
 
 | Field          | Notes                                                                |
 |----------------|----------------------------------------------------------------------|
-| Base URL       | Real API: `https://…` from the API owner. Mock: see below.           |
+| Base URL       | Real API: `https://…` from the API owner. Mock: see below. Without `http://` or `https://`, `https://` is added. |
 | Access token   | Bearer token — sent as `Authorization: Bearer <token>`.              |
 | Company ID     | UUID. The flow calls `GET /api/admin/companies/{id}` to validate.    |
 | Verify TLS     | Leave **on** for production. Off only for self-signed dev endpoints. |

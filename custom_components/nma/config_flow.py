@@ -98,6 +98,8 @@ class NmaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             base_url = user_input[CONF_BASE_URL].strip().rstrip("/")
+            if "://" not in base_url:
+                base_url = f"https://{base_url}"
             token = user_input[CONF_TOKEN].strip()
             company_id_raw = user_input[CONF_COMPANY_ID].strip()
             verify_ssl = bool(user_input.get(CONF_VERIFY_SSL, True))
@@ -108,7 +110,7 @@ class NmaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             except ValueError:
                 errors[CONF_COMPANY_ID] = "invalid_company_id"
 
-            if not base_url.startswith(("http://", "https://")):
+            if not base_url.lower().startswith(("http://", "https://")):
                 errors[CONF_BASE_URL] = "invalid_url"
 
             if not errors:
