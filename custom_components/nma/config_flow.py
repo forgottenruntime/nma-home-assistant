@@ -90,6 +90,7 @@ class NmaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for NMA Mobile Credentials."""
 
     VERSION = 1
+    MINOR_VERSION = 2
 
     async def async_step_user(
         self, user_input: Optional[Dict[str, Any]] = None

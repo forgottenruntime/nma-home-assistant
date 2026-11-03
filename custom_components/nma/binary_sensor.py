@@ -120,6 +120,10 @@ class ApiReachableBinarySensor(
             attrs["last_fetch_duration_s"] = round(d.duration_s, 3)
             attrs["people_total"] = d.people_total
             attrs["credentials_total"] = d.credentials_total
+            attrs["lists_synced_at"] = (
+                d.lists_synced_at.isoformat() if d.lists_synced_at else None
+            )
+            attrs["lists_sync_duration_s"] = round(d.lists_duration_s, 1)
             attrs["personal_data"] = self.coordinator.personal_data
         if self.coordinator.last_exception:
             attrs["last_error"] = str(self.coordinator.last_exception)

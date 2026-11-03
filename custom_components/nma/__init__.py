@@ -84,6 +84,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         verify_ssl=bool(entry.data.get(CONF_VERIFY_SSL, True)),
     )
 
+    # Stop a background sync still paging in a thread when the entry unloads
+    # or reloads, so two syncs never share the global rate limit at once.
+    entry.async_on_unload(api.close)
     coordinator = NmaCoordinator(hass, entry, api)
     await coordinator.async_config_entry_first_refresh()
     hass.data[DOMAIN][entry.entry_id] = coordinator
@@ -104,6 +107,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
+    return True
+
+
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """1.1 -> 1.2: page size 50 was the old maximum; the API now allows 100."""
+    if entry.version == 1 and entry.minor_version < 2:
+        options = dict(entry.options)
+        if options.get(OPT_PAGE_SIZE, 50) == 50:
+            options[OPT_PAGE_SIZE] = MAX_PAGE_SIZE
+        hass.config_entries.async_update_entry(
+            entry, options=options, minor_version=2
+        )
     return True
 
 

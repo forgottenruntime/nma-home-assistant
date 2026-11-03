@@ -22,7 +22,7 @@ OPT_FETCH_CREDENTIALS = "fetch_credentials"
 OPT_PERSONAL_DATA = "personal_data"
 
 DEFAULT_SCAN_INTERVAL = 60  # seconds
-DEFAULT_PAGE_SIZE = 50  # API recommends no more than 50 items per page
+DEFAULT_PAGE_SIZE = 100  # API maximum
 DEFAULT_TIMEOUT = 30.0
 DEFAULT_FETCH_PEOPLE = True
 DEFAULT_FETCH_CREDENTIALS = True
@@ -32,11 +32,17 @@ DEFAULT_PERSONAL_DATA = True
 
 MIN_SCAN_INTERVAL = timedelta(seconds=15)
 
-# Server-side rate limit: 30 requests/minute across all endpoints and
-# environments. We throttle client-side to stay safely under it.
-RATE_LIMIT_MAX_REQUESTS = 30
+# Server-side rate limit: 120 requests/minute, GLOBAL across every API
+# consumer (it protects the provisioning services). We burst at no more than
+# half of it, and pace people/credentials syncs to a small average share.
+RATE_LIMIT_MAX_REQUESTS = 60
 RATE_LIMIT_PERIOD_S = 60.0
-MAX_PAGE_SIZE = 50
+MAX_PAGE_SIZE = 100
+# Average request budget for people/credentials syncs. A sync of N requests
+# waits N * 60 / this seconds before the next one: a small site syncs every
+# poll, ~8,800 people + ~6,900 credentials (158 requests) about every 16 min.
+LIST_SYNC_REQUESTS_PER_MIN = 10
+LIST_SYNC_RETRY_S = 300  # after a failed sync (e.g. 429 from the shared limit)
 
 PLATFORMS = ["sensor", "binary_sensor"]
 

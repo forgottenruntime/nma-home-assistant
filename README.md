@@ -200,8 +200,8 @@ When you connect the API you choose what comes into Home Assistant:
 | **Include personal information** unticked (default) | Health and counts: company name/status/config, ACS WebSocket up/down, pending messages, up-since, offline-since, outage counters, API reachable, last update, plus people/credential totals and every breakdown count (status, platform, device, UAP, person type, credentials per person). No names, e-mail addresses or member lists. |
 | **Include personal information** ticked | Everything above plus the `members` attribute on each count sensor (names, e-mail addresses, devices), per-person and per-credential entities, and company contacts (bill-to, privacy officer, sold-to, incident contact, address). |
 
-Both choices make the same API calls: `1 + people pages + credential pages`
-per poll. Untick `fetch_people` / `fetch_credentials` for a single-request poll
+Both choices make the same API calls, see [Rate limiting](#rate-limiting).
+Untick `fetch_people` / `fetch_credentials` for company and WebSocket data only,
 without counts.
 
 You can change the choice later under **Configure**. Switching to health and
@@ -219,7 +219,7 @@ After adding the entry, click **Configure**:
 | Option              | Default | Notes                                                |
 |---------------------|---------|------------------------------------------------------|
 | `scan_interval`     | 60      | Polling interval in seconds (min 15, max 86400).     |
-| `page_size`         | 50      | Per-page size for `/people` and `/credentials` (max 50, the API's recommendation). |
+| `page_size`         | 100     | Per-page size for `/people` and `/credentials` (max 100, the API's maximum). Entries created with the old maximum of 50 move to 100 automatically. |
 | `personal_data`     | false   | Include personal information. Off = health and counts only, see above. |
 | `fetch_people`      | true    | Disable to skip the full `/people` pagination loop.  |
 | `fetch_credentials` | true    | Same for `/credentials`.                             |
@@ -230,22 +230,33 @@ only care about the connection-alive signals.
 
 ## Rate limiting
 
-The API enforces **30 requests/minute across all endpoints and environments**.
-A single poll makes `1 + ceil(people/page_size) + ceil(credentials/page_size)`
-requests, so a large company can exceed that in one poll.
+The API allows **120 requests/minute in total, shared by every API consumer**
+(it protects the provisioning services), with up to **100 items per page**.
+Paging a big company takes a while: ~8,800 people and ~6,900 credentials are
+158 requests.
 
-The integration protects you automatically:
+The integration splits the work so it never hogs that shared budget:
 
-- A built-in **sliding-window limiter caps outgoing requests at 30/minute** and
-  transparently waits (in a background thread) when the window is full — so a
-  big paginated fetch is spread out rather than rejected.
-- `page_size` is capped at **50** (the API's recommended maximum).
-- If the server still returns **429**, it's surfaced as a clean
-  *"Rate limit hit"* message and the next poll retries.
+- **Health poll, every `scan_interval`:** one request for the company and ACS
+  WebSocket status. Setup only waits for this one, so even a huge company
+  starts in seconds (Home Assistant cancels a setup after 300 s).
+- **People/credentials sync, in the background:** pages through `/people` and
+  `/credentials` at 100 per page. After a sync of N requests the next one waits
+  `N × 6` seconds, an average of **10 requests/minute**. A small company syncs
+  on every poll; the big one above about every 16 minutes. Count sensors show
+  *unknown* until the first sync finishes. `binary_sensor.*_api_reachable`
+  shows `lists_synced_at` and `lists_sync_duration_s`.
+- **Bursts are capped at 60 requests/minute**, half the global limit, by a
+  sliding-window limiter. The big sync above takes about 2.6 minutes.
+- **429 from the shared limit:** the health poll retries on the next poll; a
+  failed sync keeps the last counts and retries after 5 minutes.
+- **Reload or unload** stops a running sync at its next request, so two syncs
+  never run at once.
 
-If you run **multiple config entries that share one token**, they share the real
-30/min budget. In that case raise `scan_interval`, disable `fetch_people` /
-`fetch_credentials` where you don't need them, or stagger the entries.
+The pacing numbers live in `const.py` (`RATE_LIMIT_MAX_REQUESTS`,
+`LIST_SYNC_REQUESTS_PER_MIN`). If you run **multiple config entries that share
+one token**, they share the same global budget; untick `fetch_people` /
+`fetch_credentials` on entries that only need health.
 
 ## Example dashboard
 
@@ -443,8 +454,8 @@ data:
   `config_entry`). The vendored `nma_api` package requires **Pydantic v2.5+**,
   which those versions ship.
 - The integration runs the sync `requests`-based client in HA's thread
-  executor. For large companies, consider lowering the scan interval and
-  raising `page_size`.
+  executor. Large companies are handled by the background sync, see
+  [Rate limiting](#rate-limiting).
 - Per-Person/Per-Credential entities are *disabled by default* — they're
   intended for spot-checking the API, not as a production telemetry firehose.
 

@@ -5,8 +5,8 @@ helpers that paginate fully and are intended to be invoked via
 ``hass.async_add_executor_job``.
 
 All HTTP calls are routed through a sliding-window rate limiter so we stay
-under the server's documented limit of 30 requests/minute (across all
-endpoints and environments).
+well under the server's global limit of 120 requests/minute (shared by every
+API consumer).
 """
 from __future__ import annotations
 
@@ -36,11 +36,14 @@ class _RateLimiter:
     event loop.
     """
 
-    def __init__(self, max_requests: int, period: float) -> None:
+    def __init__(
+        self, max_requests: int, period: float, stop: threading.Event
+    ) -> None:
         self._max = max(1, max_requests)
         self._period = period
         self._calls: "deque[float]" = deque()
         self._lock = threading.Lock()
+        self._stop = stop
 
     def acquire(self) -> None:
         with self._lock:
@@ -55,7 +58,7 @@ class _RateLimiter:
                         int(self._period),
                         sleep_for,
                     )
-                    time.sleep(sleep_for)
+                    self._stop.wait(sleep_for)  # returns early on close()
                 self._evict(time.monotonic())
             self._calls.append(time.monotonic())
 
@@ -75,6 +78,21 @@ class NmaSnapshot:
     credentials_total: int = 0
     fetched_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     duration_s: float = 0.0
+    # People/credentials come from a slower background sync; None until the
+    # first one finished, so counts show "unknown" instead of a false 0.
+    lists_synced_at: Optional[datetime] = None
+    lists_duration_s: float = 0.0
+
+
+@dataclass(slots=True)
+class NmaLists:
+    """Result of one people/credentials sync."""
+
+    people: List[Person]
+    people_total: int
+    credentials: List[Credential]
+    credentials_total: int
+    requests: int
 
 
 class NmaApi:
@@ -95,45 +113,51 @@ class NmaApi:
         self._client._session.verify = verify_ssl  # noqa: SLF001
         self.company_id = company_id
         self.page_size = page_size
-        self._limiter = _RateLimiter(RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_PERIOD_S)
+        self._stop = threading.Event()
+        self._limiter = _RateLimiter(
+            RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_PERIOD_S, self._stop
+        )
+        self._requests = 0
+
+    def close(self) -> None:
+        """Stop paging: a sync still running in a thread aborts at its next
+        request, so a reload never doubles the load on the shared limit."""
+        self._stop.set()
 
     def _throttled(self, fn: Callable[..., T], *args, **kwargs) -> T:
         """Run a client call after waiting for a rate-limit slot."""
         self._limiter.acquire()
+        if self._stop.is_set():
+            raise NmaApiError(0, message="stopped (entry unloaded)")
+        self._requests += 1
         return fn(*args, **kwargs)
 
     # -- single fetches ---------------------------------------------------- #
     def fetch_company(self) -> Company:
         return self._throttled(self._client.get_company, self.company_id)
 
-    def fetch_all(
+    def fetch_lists(
         self,
         *,
         include_people: bool = True,
         include_credentials: bool = True,
-    ) -> NmaSnapshot:
-        """Fetch company + (optionally) all people and credentials."""
-        start = datetime.now(timezone.utc)
-        company = self._throttled(self._client.get_company, self.company_id)
+    ) -> NmaLists:
+        """Fetch all pages of people and/or credentials."""
+        before = self._requests
         people: List[Person] = []
         people_total = 0
         credentials: List[Credential] = []
         credentials_total = 0
-
         if include_people:
             people, people_total = self._fetch_people_all()
         if include_credentials:
             credentials, credentials_total = self._fetch_credentials_all()
-
-        end = datetime.now(timezone.utc)
-        return NmaSnapshot(
-            company=company,
+        return NmaLists(
             people=people,
-            credentials=credentials,
             people_total=people_total,
+            credentials=credentials,
             credentials_total=credentials_total,
-            fetched_at=end,
-            duration_s=(end - start).total_seconds(),
+            requests=self._requests - before,
         )
 
     # -- paginated fetches ------------------------------------------------- #
@@ -174,4 +198,4 @@ class NmaApi:
         return items, total
 
 
-__all__ = ["NmaApi", "NmaApiError", "NmaSnapshot"]
+__all__ = ["NmaApi", "NmaApiError", "NmaLists", "NmaSnapshot"]

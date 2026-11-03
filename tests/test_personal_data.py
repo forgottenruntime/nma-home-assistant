@@ -1,4 +1,5 @@
 """Personal information on/off: config flow choice, fetching and entities."""
+import threading
 from unittest.mock import patch
 
 from homeassistant import config_entries
@@ -6,8 +7,8 @@ from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.nma.api import NmaSnapshot
-from custom_components.nma.const import DOMAIN, OPT_PERSONAL_DATA
+from custom_components.nma.api import NmaLists
+from custom_components.nma.const import DOMAIN, OPT_PAGE_SIZE, OPT_PERSONAL_DATA
 from custom_components.nma.nma_api.models import Company, Credential, Person
 
 COMPANY_ID = "11111111-1111-1111-1111-111111111111"
@@ -38,6 +39,7 @@ CREDENTIAL = Credential.model_validate({
 
 class FakeApi:
     calls: list = []
+    release = None  # threading.Event: hold fetch_lists until set
 
     def __init__(self, base_url, token, company_id, **_):
         self.company_id = company_id
@@ -46,15 +48,20 @@ class FakeApi:
     def fetch_company(self):
         return COMPANY
 
-    def fetch_all(self, *, include_people, include_credentials):
+    def fetch_lists(self, *, include_people, include_credentials):
+        if FakeApi.release is not None:
+            FakeApi.release.wait(5)
         FakeApi.calls.append((include_people, include_credentials))
-        return NmaSnapshot(
-            company=COMPANY,
+        return NmaLists(
             people=[PERSON] if include_people else [],
-            credentials=[CREDENTIAL] if include_credentials else [],
             people_total=1 if include_people else 0,
+            credentials=[CREDENTIAL] if include_credentials else [],
             credentials_total=1 if include_credentials else 0,
+            requests=2,
         )
+
+    def close(self):
+        pass
 
 
 def _entry(personal: bool) -> MockConfigEntry:
@@ -78,7 +85,7 @@ async def test_config_flow_defaults_to_health_only(hass):
             {"base_url": "api.test/", "token": "x",
              "company_id": COMPANY_ID},
         )
-        await hass.async_block_till_done()
+        await hass.async_block_till_done(wait_background_tasks=True)
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["options"][OPT_PERSONAL_DATA] is False
     # No scheme typed: https:// is added.
@@ -97,7 +104,7 @@ async def test_health_only_has_counts_but_no_personal_data(hass):
     FakeApi.calls.clear()
     with patch("custom_components.nma.NmaApi", FakeApi):
         assert await hass.config_entries.async_setup(entry.entry_id)
-        await hass.async_block_till_done()
+        await hass.async_block_till_done(wait_background_tasks=True)
 
     assert FakeApi.calls == [(True, True)]
     assert registry.async_get(stale.entity_id) is None
@@ -124,7 +131,7 @@ async def test_personal_data_on_keeps_everything(hass):
     FakeApi.calls.clear()
     with patch("custom_components.nma.NmaApi", FakeApi):
         assert await hass.config_entries.async_setup(entry.entry_id)
-        await hass.async_block_till_done()
+        await hass.async_block_till_done(wait_background_tasks=True)
 
     assert FakeApi.calls == [(True, True)]
     assert hass.states.get("sensor.acme_people_total").state == "1"
@@ -146,13 +153,80 @@ async def test_options_flow_opens_and_saves(hass):
     entry.add_to_hass(hass)
     with patch("custom_components.nma.NmaApi", FakeApi):
         assert await hass.config_entries.async_setup(entry.entry_id)
-        await hass.async_block_till_done()
+        await hass.async_block_till_done(wait_background_tasks=True)
 
         result = await hass.config_entries.options.async_init(entry.entry_id)
         assert result["type"] is FlowResultType.FORM
         result = await hass.config_entries.options.async_configure(
             result["flow_id"], {OPT_PERSONAL_DATA: False}
         )
-        await hass.async_block_till_done()
+        await hass.async_block_till_done(wait_background_tasks=True)
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert entry.options[OPT_PERSONAL_DATA] is False
+
+
+async def test_setup_does_not_wait_for_people_sync(hass):
+    """A big company pages for minutes; setup must not wait for it."""
+    entry = _entry(personal=False)
+    entry.add_to_hass(hass)
+    FakeApi.calls.clear()
+    FakeApi.release = threading.Event()
+    try:
+        with patch("custom_components.nma.NmaApi", FakeApi):
+            assert await hass.config_entries.async_setup(entry.entry_id)
+            await hass.async_block_till_done()
+            # Health is there, counts are unknown until the sync finishes.
+            assert hass.states.get("binary_sensor.acme_api_reachable").state == "on"
+            assert hass.states.get("sensor.acme_people_total").state == "unknown"
+            assert hass.states.get("sensor.acme_people_active").state == "unknown"
+            FakeApi.release.set()
+            await hass.async_block_till_done(wait_background_tasks=True)
+    finally:
+        FakeApi.release = None
+    assert hass.states.get("sensor.acme_people_total").state == "1"
+    assert hass.states.get("sensor.acme_people_active").state == "1"
+
+
+async def test_migration_raises_old_page_size_to_100(hass):
+    entry = _entry(personal=False)
+    entry = MockConfigEntry(
+        domain=DOMAIN, data=entry.data, minor_version=1,
+        options={OPT_PERSONAL_DATA: False, OPT_PAGE_SIZE: 50},
+    )
+    entry.add_to_hass(hass)
+    with patch("custom_components.nma.NmaApi", FakeApi):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done(wait_background_tasks=True)
+    assert entry.minor_version == 2
+    assert entry.options[OPT_PAGE_SIZE] == 100
+
+
+def test_api_pages_at_100_and_stops_on_close():
+    from types import SimpleNamespace
+
+    import pytest
+
+    from custom_components.nma.api import NmaApi, NmaApiError
+
+    def pages(total):
+        def get(company_id, page, size):
+            n = max(0, min(size, total - page * size))
+            return SimpleNamespace(
+                items=[PERSON] * n,
+                page_info=SimpleNamespace(
+                    total_elements=total, total_pages=-(-total // size)
+                ),
+            )
+        return get
+
+    api = NmaApi("https://api.test", "x", COMPANY_ID, page_size=100)
+    api._client.get_people = pages(250)
+    api._client.get_credentials = pages(150)
+    lists = api.fetch_lists()
+    assert (lists.people_total, len(lists.people)) == (250, 250)
+    assert (lists.credentials_total, len(lists.credentials)) == (150, 150)
+    assert lists.requests == 3 + 2
+
+    api.close()
+    with pytest.raises(NmaApiError):
+        api.fetch_lists()

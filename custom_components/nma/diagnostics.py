@@ -91,6 +91,12 @@ async def async_get_config_entry_diagnostics(
         "credentials_total": coordinator.data.credentials_total,
         "fetched_at": coordinator.data.fetched_at.isoformat(),
         "duration_s": coordinator.data.duration_s,
+        "lists_synced_at": (
+            coordinator.data.lists_synced_at.isoformat()
+            if coordinator.data.lists_synced_at
+            else None
+        ),
+        "lists_duration_s": coordinator.data.lists_duration_s,
         "people": people,
         "credentials": credentials,
     }

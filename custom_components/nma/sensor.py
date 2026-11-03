@@ -451,7 +451,7 @@ class TotalPeopleSensor(_NmaBaseSensor):
     @property
     def native_value(self) -> Optional[int]:
         d = self.coordinator.data
-        return d.people_total if d else None
+        return d.people_total if d and d.lists_synced_at else None
 
 
 class TotalCredentialsSensor(_NmaBaseSensor):
@@ -466,7 +466,7 @@ class TotalCredentialsSensor(_NmaBaseSensor):
     @property
     def native_value(self) -> Optional[int]:
         d = self.coordinator.data
-        return d.credentials_total if d else None
+        return d.credentials_total if d and d.lists_synced_at else None
 
 
 # --------------------------------------------------------------------------- #
@@ -525,8 +525,9 @@ class _CountSensor(_NmaBaseSensor):
 
     @property
     def native_value(self) -> Optional[int]:
-        if self.coordinator.data is None:
-            return None
+        d = self.coordinator.data
+        if d is None or d.lists_synced_at is None:
+            return None  # first people/credentials sync still running
         return len(self._matches())
 
     @property
