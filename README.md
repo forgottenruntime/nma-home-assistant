@@ -478,10 +478,12 @@ the logo shows on the **Integrations page and device cards** — no
 `home-assistant/brands` PR needed (that repo no longer accepts custom-integration
 submissions).
 
-> Note: the small icon in the **HACS store listing** may still appear blank.
-> That's a known HACS bug ([hacs/integration#5171](https://github.com/hacs/integration/issues/5171))
-> where HACS hasn't yet adopted the local brands proxy — unrelated to this
-> integration. The HA UI itself shows the logo correctly.
+> Note: the old **HACS** store shows a grey "icon not available" placeholder
+> for this integration. HACS never adopted the local brands proxy
+> ([hacs/integration#5171](https://github.com/hacs/integration/issues/5171)).
+> HACS ships inside Home Assistant as the **Marketplace** integration from
+> **2026.11**, and Marketplace shows local brand icons, so the logo appears
+> there after upgrading. Nothing to change in this integration.
 
 To regenerate the artwork:
 
