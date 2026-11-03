@@ -9,8 +9,8 @@ for the API itself.
 ## Highlights
 
 - One config entry per **Company ID**.
-- Choose at setup: **personal information** or **health only** (no people or
-  credential data in Home Assistant, one API call per poll).
+- Choose at setup: **personal information** or **health and counts only**
+  (no names, e-mail addresses or per-person entities in Home Assistant).
 - Live **ACS WebSocket** connectivity binary sensor + pending-message count.
 - **API reachable** binary sensor (connection-alive watchdog).
 - Status breakdowns: counts per `CredentialStatus`, `PersonStatus`, `Platform`,

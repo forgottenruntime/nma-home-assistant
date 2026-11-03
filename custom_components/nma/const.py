@@ -16,8 +16,9 @@ OPT_SCAN_INTERVAL = "scan_interval"
 OPT_PAGE_SIZE = "page_size"
 OPT_FETCH_PEOPLE = "fetch_people"
 OPT_FETCH_CREDENTIALS = "fetch_credentials"
-# Personal information (people, credentials, company contacts) on/off.
-# Off = health-only: company status, ACS WebSocket and API reachability.
+# Personal information on/off. Off = health and counts only: no names,
+# e-mail addresses, member lists, per-person/per-credential entities or
+# company contacts.
 OPT_PERSONAL_DATA = "personal_data"
 
 DEFAULT_SCAN_INTERVAL = 60  # seconds

@@ -82,6 +82,9 @@ async def async_get_config_entry_diagnostics(
         for c in coordinator.data.credentials
     ]
 
+    if not coordinator.personal_data:
+        people, credentials = [], []
+
     out["data"] = {
         "company": company,
         "people_total": coordinator.data.people_total,

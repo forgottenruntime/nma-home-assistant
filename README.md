@@ -186,25 +186,29 @@ You'll be asked for:
 | Access token   | Bearer token — sent as `Authorization: Bearer <token>`.              |
 | Company ID     | UUID. The flow calls `GET /api/admin/companies/{id}` to validate.    |
 | Verify TLS     | Leave **on** for production. Off only for self-signed dev endpoints. |
-| Include personal information | Off by default. See [Personal information or health only](#personal-information-or-health-only). |
+| Include personal information | Off by default. See [Personal information or health and counts](#personal-information-or-health-and-counts). |
 
 The flow rejects invalid UUIDs, malformed URLs, and surfaces `401/403/404`
 from the API as distinct errors.
 
-## Personal information or health only
+## Personal information or health and counts
 
 When you connect the API you choose what comes into Home Assistant:
 
 | Choice | What you get | API calls per poll |
 |---|---|---|
-| **Include personal information** unticked (default) | Health only: company name/status/config, ACS WebSocket up/down, pending messages, up-since, offline-since, outage counters, API reachable, last update. | 1 (`/companies/{id}`) |
-| **Include personal information** ticked | Everything above plus people/credential totals and breakdowns, member lists with names and e-mail addresses, per-person and per-credential entities, company contacts (bill-to, privacy officer, sold-to, incident contact, address). | 1 + people pages + credential pages |
+| **Include personal information** unticked (default) | Health and counts: company name/status/config, ACS WebSocket up/down, pending messages, up-since, offline-since, outage counters, API reachable, last update, plus people/credential totals and every breakdown count (status, platform, device, UAP, person type, credentials per person). No names, e-mail addresses or member lists. |
+| **Include personal information** ticked | Everything above plus the `members` attribute on each count sensor (names, e-mail addresses, devices), per-person and per-credential entities, and company contacts (bill-to, privacy officer, sold-to, incident contact, address). |
 
-You can change the choice later under **Configure**. Switching to health only
-stops the `/people` and `/credentials` calls and removes the people and
-credential entities from the entity registry. Their old states stay in the
-recorder history until it is purged; run `recorder.purge_entities` on them first
-if that history must go too.
+Both choices make the same API calls: `1 + people pages + credential pages`
+per poll. Untick `fetch_people` / `fetch_credentials` for a single-request poll
+without counts.
+
+You can change the choice later under **Configure**. Switching to health and
+counts removes the per-person and per-credential entities from the entity
+registry and drops the member lists. Their old states stay in the recorder
+history until it is purged; run `recorder.purge_entities` on them first if that
+history must go too.
 
 Entries created before this option existed keep personal information on.
 
@@ -216,13 +220,13 @@ After adding the entry, click **Configure**:
 |---------------------|---------|------------------------------------------------------|
 | `scan_interval`     | 60      | Polling interval in seconds (min 15, max 86400).     |
 | `page_size`         | 50      | Per-page size for `/people` and `/credentials` (max 50, the API's recommendation). |
-| `personal_data`     | false   | Include personal information. Off = health only, see above. |
+| `personal_data`     | false   | Include personal information. Off = health and counts only, see above. |
 | `fetch_people`      | true    | Disable to skip the full `/people` pagination loop.  |
 | `fetch_credentials` | true    | Same for `/credentials`.                             |
 
-The two `fetch_*` toggles only apply when `personal_data` is on. For just the
-Company and WebSocket data, untick `personal_data` instead: that also drops the
-people and credential entities.
+Disabling the two `fetch_*` toggles leaves you with just the Company and
+WebSocket data, in one request per poll — useful on huge companies where you
+only care about the connection-alive signals.
 
 ## Rate limiting
 

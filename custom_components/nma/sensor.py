@@ -69,6 +69,8 @@ async def async_setup_entry(
         CompanyTciValueSensor(coordinator),
         AcsWsPendingMessagesSensor(coordinator),
         AcsWsSinceSensor(coordinator),
+        TotalPeopleSensor(coordinator),
+        TotalCredentialsSensor(coordinator),
         LastUpdateSensor(coordinator),
         LastUpdateDurationSensor(coordinator),
         AcsWsOutagesSensor(coordinator),
@@ -76,24 +78,6 @@ async def async_setup_entry(
         ApiOutagesSensor(coordinator),
     ]
 
-    if not coordinator.personal_data:
-        # Health-only: no people/credential entities. Drop any left in the
-        # registry from when personal data was on, so names and e-mail
-        # addresses do not linger in entity names or attributes.
-        async_add_entities(entities)
-        keep = {e.unique_id for e in entities}
-        registry = er.async_get(hass)
-        for reg_entry in er.async_entries_for_config_entry(
-            registry, entry.entry_id
-        ):
-            if reg_entry.domain == "sensor" and reg_entry.unique_id not in keep:
-                registry.async_remove(reg_entry.entity_id)
-        return
-
-    entities += [
-        TotalPeopleSensor(coordinator),
-        TotalCredentialsSensor(coordinator),
-    ]
     for status in PersonStatus:
         entities.append(_people_by_status(coordinator, status))
     for platform in Platform:
@@ -154,9 +138,22 @@ async def async_setup_entry(
     # Employee / Contractor / Visitor. Discovered dynamically from the data.
     _DynamicPersonTypeAdder(coordinator, async_add_entities).start()
 
-    # Dynamic per-person / per-credential entities (disabled by default).
-    _DynamicPersonAdder(coordinator, async_add_entities).start()
-    _DynamicCredentialAdder(coordinator, async_add_entities).start()
+    if coordinator.personal_data:
+        # Dynamic per-person / per-credential entities (disabled by default).
+        _DynamicPersonAdder(coordinator, async_add_entities).start()
+        _DynamicCredentialAdder(coordinator, async_add_entities).start()
+        return
+
+    # Without personal data: drop per-person / per-credential entities left
+    # from when it was on; their entity names hold names.
+    registry = er.async_get(hass)
+    personal_prefixes = (
+        f"{entry.entry_id}_person_",
+        f"{entry.entry_id}_credential_",
+    )
+    for reg_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if reg_entry.unique_id.startswith(personal_prefixes):
+            registry.async_remove(reg_entry.entity_id)
 
 
 # --------------------------------------------------------------------------- #
@@ -534,6 +531,9 @@ class _CountSensor(_NmaBaseSensor):
 
     @property
     def extra_state_attributes(self) -> Dict[str, Any]:
+        if not self.coordinator.personal_data:
+            # Counts only: member lists hold names and e-mail addresses.
+            return {}
         matches = self._matches()
         if not matches:
             return {"members": []}

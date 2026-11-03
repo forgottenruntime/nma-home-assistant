@@ -83,7 +83,7 @@ async def test_config_flow_defaults_to_health_only(hass):
     assert result["options"][OPT_PERSONAL_DATA] is False
 
 
-async def test_health_only_has_no_personal_data(hass):
+async def test_health_only_has_counts_but_no_personal_data(hass):
     entry = _entry(personal=False)
     entry.add_to_hass(hass)
     registry = er.async_get(hass)
@@ -97,16 +97,20 @@ async def test_health_only_has_no_personal_data(hass):
         assert await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
 
-    assert FakeApi.calls == [(False, False)]
+    assert FakeApi.calls == [(True, True)]
     assert registry.async_get(stale.entity_id) is None
     keys = {
         e.unique_id.removeprefix(f"{entry.entry_id}_")
         for e in er.async_entries_for_config_entry(registry, entry.entry_id)
     }
-    assert "acs_ws_up" in keys
-    assert not [k for k in keys if k.startswith(("people", "credentials", "person_", "credential_"))]
+    assert {"acs_ws_up", "people_total", "people_type_employee",
+            "credentials_type_employee", "people_credentials_1"} <= keys
+    assert not [k for k in keys if k.startswith(("person_", "credential_"))]
+    assert hass.states.get("sensor.acme_people_total").state == "1"
+    assert hass.states.get("sensor.acme_credentials_on_phone").state == "1"
     for state in hass.states.async_all():
         text = str(state.attributes) + state.name
+        assert "members" not in state.attributes, state.entity_id
         assert "Jane" not in text and "@" not in text, state.entity_id
     assert hass.states.get("binary_sensor.acme_acs_websocket").state == "on"
     assert hass.states.get("binary_sensor.acme_api_reachable").state == "on"

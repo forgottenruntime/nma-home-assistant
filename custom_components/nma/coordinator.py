@@ -50,12 +50,12 @@ class NmaCoordinator(DataUpdateCoordinator[NmaSnapshot]):
         )
 
     async def _async_update_data(self) -> NmaSnapshot:
-        # Health-only entries never fetch /people or /credentials, so no
-        # personal data reaches Home Assistant (and polls cost 1 request).
-        include_people = self.personal_data and bool(
+        # Fetched in both modes: without personal data the entities only
+        # expose counts, never names or e-mail addresses.
+        include_people = bool(
             self.entry.options.get(OPT_FETCH_PEOPLE, DEFAULT_FETCH_PEOPLE)
         )
-        include_credentials = self.personal_data and bool(
+        include_credentials = bool(
             self.entry.options.get(OPT_FETCH_CREDENTIALS, DEFAULT_FETCH_CREDENTIALS)
         )
         try:

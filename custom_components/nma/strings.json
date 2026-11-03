@@ -3,7 +3,7 @@
         "step": {
             "user": {
                 "title": "NMA Mobile Credentials",
-                "description": "Connect to the NMA API. Use the development URL while testing.\n\nChoose whether personal information comes into Home Assistant. Unticked, you only get the overall health of the NMA API: company status, ACS WebSocket and API reachability.",
+                "description": "Connect to the NMA API. Use the development URL while testing.\n\nChoose whether personal information comes into Home Assistant. Unticked, you get the overall health of the NMA API plus people and credential counts, without names or e-mail addresses.",
                 "data": {
                     "base_url": "Base URL (e.g. https://dev.api.example.com)",
                     "token": "Access token (Bearer)",
@@ -12,7 +12,7 @@
                     "personal_data": "Include personal information"
                 },
                 "data_description": {
-                    "personal_data": "Names, e-mail addresses, people and credential counts, per-person and per-credential entities, and company contacts. Leave unticked for health only."
+                    "personal_data": "Adds names and e-mail addresses (member lists on the count sensors), per-person and per-credential entities, and company contacts. Leave unticked for health and counts only."
                 }
             }
         },
@@ -41,9 +41,9 @@
                     "fetch_people": "Fetch full people list",
                     "fetch_credentials": "Fetch full credentials list"
                 },
-                "description": "Untick personal information for health only (company status, ACS WebSocket, API reachability). The fetch toggles fine-tune what is fetched when personal information is on.",
+                "description": "Untick personal information for health and counts only: no names, e-mail addresses or company contacts. The fetch toggles turn the people and credential counts on or off.",
                 "data_description": {
-                    "personal_data": "Unticked = health only: no /people or /credentials calls, and people/credential entities are removed. The two fetch toggles below only apply when this is ticked."
+                    "personal_data": "Unticked = health and counts only. Per-person and per-credential entities are removed."
                 }
             }
         }
