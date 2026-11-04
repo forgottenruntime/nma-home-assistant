@@ -11,7 +11,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import NmaApi, NmaApiError, NmaLists, NmaSnapshot
+from .api import NmaApi, NmaLists, NmaSnapshot, describe_error
 from .const import (
     DEFAULT_FETCH_CREDENTIALS,
     DEFAULT_FETCH_PEOPLE,
@@ -60,6 +60,9 @@ class NmaCoordinator(DataUpdateCoordinator[NmaSnapshot]):
         self._lists_duration_s = 0.0
         self._sync_running = False
         self._next_sync = 0.0  # time.monotonic() deadline
+        # Code of the last failed health poll (HTTP status or a word such as
+        # "timeout"); None while the API answers. Shown on api_reachable.
+        self.error_code = None
         scan_interval = int(
             entry.options.get(OPT_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
         )
@@ -76,10 +79,14 @@ class NmaCoordinator(DataUpdateCoordinator[NmaSnapshot]):
             company = await self.hass.async_add_executor_job(
                 self.api.fetch_company
             )
-        except NmaApiError as err:
-            raise UpdateFailed(f"NMA API error: {err}") from err
         except Exception as err:  # noqa: BLE001 - surface to HA
-            raise UpdateFailed(f"Unexpected error: {err}") from err
+            self.error_code, text = describe_error(err)
+            if not self.last_update_success:
+                # HA skips entity updates on a second failure in a row; push
+                # one anyway so api_reachable shows the current error.
+                self.hass.loop.call_soon(self.async_update_listeners)
+            raise UpdateFailed(text) from err
+        self.error_code = None
         end = datetime.now(timezone.utc)
 
         if not self._sync_running and time.monotonic() >= self._next_sync:
@@ -123,7 +130,7 @@ class NmaCoordinator(DataUpdateCoordinator[NmaSnapshot]):
             _LOGGER.warning(
                 "NMA people/credentials sync failed, retrying in %d s: %s",
                 LIST_SYNC_RETRY_S,
-                err,
+                describe_error(err)[1],
             )
             self._next_sync = time.monotonic() + LIST_SYNC_RETRY_S
             return

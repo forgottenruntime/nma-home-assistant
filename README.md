@@ -22,7 +22,10 @@ Home Assistant entities. Built primarily as a **test/debug harness** for the API
 - **One device** per company, all entities grouped under it.
 - **Connectivity watchdog**: `binary_sensor.*_api_reachable` is on while the
   most recent poll succeeded; attributes expose base URL, polling interval,
-  last fetch duration, and last error message.
+  last fetch duration, and the last error as a short message (`last_error`,
+  e.g. `[502] Bad Gateway` or `Host name not found (DNS)`). While the API is
+  failing, `last_error_code` holds the HTTP status or `timeout` / `dns` /
+  `tls` / `refused` / `connection`.
 - **ACS WebSocket** binary sensor (`device_class: connectivity`) +
   `since` timestamp sensor + pending-message-count sensor, plus **outage
   tracking**: `*_acs_websocket_outages` / `*_api_outages` counters (survive

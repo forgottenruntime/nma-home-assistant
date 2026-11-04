@@ -16,7 +16,9 @@ import time
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Callable, List, Optional, TypeVar
+from typing import Callable, List, Optional, Tuple, TypeVar, Union
+
+import requests
 
 from .const import RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_PERIOD_S
 from .nma_api import NmaApiClient, NmaApiError
@@ -65,6 +67,28 @@ class _RateLimiter:
     def _evict(self, now: float) -> None:
         while self._calls and now - self._calls[0] >= self._period:
             self._calls.popleft()
+
+
+def describe_error(err: BaseException) -> Tuple[Union[int, str], str]:
+    """Short (code, text) for a failed API call, for attributes and alerts.
+
+    HTTP errors keep their status code ("[502] Bad Gateway"); network errors
+    get a word instead of requests' long "HTTPSConnectionPool(...)" text.
+    """
+    if isinstance(err, NmaApiError):
+        return err.status_code, str(err)
+    if isinstance(err, requests.Timeout):
+        return "timeout", "No answer from the API in time (timeout)"
+    if isinstance(err, requests.exceptions.SSLError):
+        return "tls", "TLS/certificate error"
+    if isinstance(err, requests.ConnectionError):
+        text = str(err)
+        if "NameResolution" in text or "Name or service not known" in text or "nodename" in text:
+            return "dns", "Host name not found (DNS)"
+        if "Connection refused" in text:
+            return "refused", "Connection refused"
+        return "connection", "Cannot connect to the API"
+    return type(err).__name__, " ".join(str(err).split())[:120] or type(err).__name__
 
 
 @dataclass(slots=True)
@@ -198,4 +222,4 @@ class NmaApi:
         return items, total
 
 
-__all__ = ["NmaApi", "NmaApiError", "NmaLists", "NmaSnapshot"]
+__all__ = ["NmaApi", "NmaApiError", "NmaLists", "NmaSnapshot", "describe_error"]

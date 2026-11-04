@@ -126,7 +126,11 @@ class ApiReachableBinarySensor(
             attrs["lists_sync_duration_s"] = round(d.lists_duration_s, 1)
             attrs["personal_data"] = self.coordinator.personal_data
         if self.coordinator.last_exception:
+            # Last error seen (HA keeps it after recovery).
             attrs["last_error"] = str(self.coordinator.last_exception)
+        if self.coordinator.error_code is not None:
+            # Only while the API is failing: HTTP status or e.g. "timeout".
+            attrs["last_error_code"] = self.coordinator.error_code
         # `next_update_at` for visibility
         if self.coordinator.update_interval and isinstance(
             d.fetched_at if d else None, datetime

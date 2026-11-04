@@ -230,3 +230,35 @@ def test_api_pages_at_100_and_stops_on_close():
     api.close()
     with pytest.raises(NmaApiError):
         api.fetch_lists()
+
+
+async def test_api_unreachable_shows_short_error_and_code(hass):
+    import requests
+
+    from custom_components.nma.api import NmaApiError
+
+    entry = _entry(personal=False)
+    entry.add_to_hass(hass)
+    with patch("custom_components.nma.NmaApi", FakeApi):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done(wait_background_tasks=True)
+        coordinator = hass.data[DOMAIN][entry.entry_id]
+
+        for err, code, text in [
+            (NmaApiError(502, message="Bad Gateway"), 502, "[502] Bad Gateway"),
+            (requests.ConnectTimeout("HTTPSConnectionPool(host='x', port=443): Max retries"),
+             "timeout", "No answer from the API in time (timeout)"),
+            (requests.ConnectionError("HTTPSConnectionPool(...) NameResolutionError(...)"),
+             "dns", "Host name not found (DNS)"),
+        ]:
+            with patch.object(FakeApi, "fetch_company", side_effect=err):
+                await coordinator.async_refresh()
+                await hass.async_block_till_done()
+            st = hass.states.get("binary_sensor.acme_api_reachable")
+            assert st.state == "off"
+            assert st.attributes["last_error"] == text
+            assert st.attributes["last_error_code"] == code
+
+        await coordinator.async_refresh()  # API answers again
+        st = hass.states.get("binary_sensor.acme_api_reachable")
+        assert st.state == "on" and "last_error_code" not in st.attributes
