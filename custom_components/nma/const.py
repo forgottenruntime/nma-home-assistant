@@ -33,15 +33,18 @@ DEFAULT_PERSONAL_DATA = True
 MIN_SCAN_INTERVAL = timedelta(seconds=15)
 
 # Server-side rate limit: 120 requests/minute, GLOBAL across every API
-# consumer (it protects the provisioning services). We burst at no more than
-# half of it, and pace people/credentials syncs to a small average share.
+# consumer (it protects the provisioning services). All NMA connections share
+# one limiter that bursts at no more than half of it, and the
+# people/credentials syncs share a small average budget.
 RATE_LIMIT_MAX_REQUESTS = 60
 RATE_LIMIT_PERIOD_S = 60.0
+RATE_LIMIT_BACKOFF_S = 60  # every connection pauses this long after a 429
 MAX_PAGE_SIZE = 100
-# Average request budget for people/credentials syncs. A sync of N requests
-# waits N * 60 / this seconds before the next one: a small site syncs every
-# poll, ~8,800 people + ~6,900 credentials (158 requests) about every 16 min.
-LIST_SYNC_REQUESTS_PER_MIN = 10
+# Average request budget for people/credentials syncs, shared by all NMA
+# connections (each gets an equal part). A sync of N requests waits
+# N * 60 / part seconds before the next one. With 4 connections (5/min each):
+# 3 requests every poll, 158 requests (~8,800 people) about every 32 min.
+LIST_SYNC_REQUESTS_PER_MIN = 20
 LIST_SYNC_RETRY_S = 300  # after a failed sync (e.g. 429 from the shared limit)
 
 PLATFORMS = ["sensor", "binary_sensor"]

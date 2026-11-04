@@ -139,9 +139,10 @@ class NmaCoordinator(DataUpdateCoordinator[NmaSnapshot]):
 
         duration = time.monotonic() - start
         # ponytail: average pacing only; a delta endpoint would beat re-paging.
-        self._next_sync = start + max(
-            duration, lists.requests * 60 / LIST_SYNC_REQUESTS_PER_MIN
+        share = LIST_SYNC_REQUESTS_PER_MIN / max(
+            1, len(self.hass.config_entries.async_entries(DOMAIN))
         )
+        self._next_sync = start + max(duration, lists.requests * 60 / share)
         self._lists = lists
         self._lists_synced_at = datetime.now(timezone.utc)
         self._lists_duration_s = duration

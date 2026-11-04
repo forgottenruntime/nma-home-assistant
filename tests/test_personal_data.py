@@ -262,3 +262,41 @@ async def test_api_unreachable_shows_short_error_and_code(hass):
         await coordinator.async_refresh()  # API answers again
         st = hass.states.get("binary_sensor.acme_api_reachable")
         assert st.state == "on" and "last_error_code" not in st.attributes
+
+
+def test_429_pauses_every_connection():
+    import threading
+    import time as _time
+
+    import pytest
+
+    from custom_components.nma import api as nma_api
+
+    a = nma_api.NmaApi("https://a.test", "x", COMPANY_ID)
+    b = nma_api.NmaApi("https://b.test", "x", COMPANY_ID)
+
+    def too_many(*_, **__):
+        raise nma_api.NmaApiError(429, message="Too Many Requests")
+
+    a._client.get_company = too_many
+    try:
+        with pytest.raises(nma_api.NmaApiError):
+            a.fetch_company()
+        # Connection b shares the limiter, so it is paused too.
+        assert nma_api._LIMITER._paused_until > _time.monotonic() + 50
+    finally:
+        nma_api._LIMITER._paused_until = 0.0
+
+    # A paused limiter holds callers; stop() lets them go at once.
+    limiter = nma_api._RateLimiter(5, 60.0)
+    limiter.pause(0.2)
+    t0 = _time.monotonic()
+    limiter.acquire(threading.Event())
+    assert _time.monotonic() - t0 >= 0.19
+    limiter.pause(30)
+    stop = threading.Event()
+    stop.set()
+    t0 = _time.monotonic()
+    limiter.acquire(stop)
+    assert _time.monotonic() - t0 < 1
+    assert b is not a

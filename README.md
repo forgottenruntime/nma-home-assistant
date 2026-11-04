@@ -244,22 +244,26 @@ The integration splits the work so it never hogs that shared budget:
   WebSocket status. Setup only waits for this one, so even a huge company
   starts in seconds (Home Assistant cancels a setup after 300 s).
 - **People/credentials sync, in the background:** pages through `/people` and
-  `/credentials` at 100 per page. After a sync of N requests the next one waits
-  `N × 6` seconds, an average of **10 requests/minute**. A small company syncs
-  on every poll; the big one above about every 16 minutes. Count sensors show
-  *unknown* until the first sync finishes. `binary_sensor.*_api_reachable`
-  shows `lists_synced_at` and `lists_sync_duration_s`.
-- **Bursts are capped at 60 requests/minute**, half the global limit, by a
-  sliding-window limiter. The big sync above takes about 2.6 minutes.
-- **429 from the shared limit:** the health poll retries on the next poll; a
-  failed sync keeps the last counts and retries after 5 minutes.
+  `/credentials` at 100 per page. All NMA connections share an average budget
+  of **20 requests/minute**, split equally: with 4 connections each gets 5, so
+  after a sync of N requests the next one waits `N × 12` seconds. A small
+  company syncs on every poll; the big one above about every 32 minutes. Count
+  sensors show *unknown* until the first sync finishes.
+  `binary_sensor.*_api_reachable` shows `lists_synced_at` and
+  `lists_sync_duration_s`.
+- **Bursts are capped at 60 requests/minute for the whole integration**, half
+  the global limit, by one sliding-window limiter shared by every connection.
+  The big sync above takes about 2.6 minutes.
+- **429 from the shared limit:** every NMA connection pauses for 60 seconds.
+  The health poll retries on the next poll; a failed sync keeps the last
+  counts and retries after 5 minutes.
 - **Reload or unload** stops a running sync at its next request, so two syncs
   never run at once.
 
 The pacing numbers live in `const.py` (`RATE_LIMIT_MAX_REQUESTS`,
-`LIST_SYNC_REQUESTS_PER_MIN`). If you run **multiple config entries that share
-one token**, they share the same global budget; untick `fetch_people` /
-`fetch_credentials` on entries that only need health.
+`RATE_LIMIT_BACKOFF_S`, `LIST_SYNC_REQUESTS_PER_MIN`). Untick `fetch_people` /
+`fetch_credentials` on entries that only need health; that leaves more of the
+shared budget for the others.
 
 ## Example dashboard
 

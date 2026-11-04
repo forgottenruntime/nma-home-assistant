@@ -20,7 +20,7 @@ from typing import Callable, List, Optional, Tuple, TypeVar, Union
 
 import requests
 
-from .const import RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_PERIOD_S
+from .const import RATE_LIMIT_BACKOFF_S, RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_PERIOD_S
 from .nma_api import NmaApiClient, NmaApiError
 from .nma_api.models import Company, Credential, Person
 
@@ -33,22 +33,28 @@ class _RateLimiter:
     """Thread-safe sliding-window rate limiter.
 
     Allows at most ``max_requests`` calls within any ``period`` seconds. When
-    the window is full, :meth:`acquire` blocks (``time.sleep``) until the
-    oldest call ages out. Safe to call from an executor thread — never from the
-    event loop.
+    the window is full, :meth:`acquire` blocks until the oldest call ages out.
+    :meth:`pause` (after a 429) holds every caller for a while. Safe to call
+    from executor threads — never from the event loop.
     """
 
-    def __init__(
-        self, max_requests: int, period: float, stop: threading.Event
-    ) -> None:
+    def __init__(self, max_requests: int, period: float) -> None:
         self._max = max(1, max_requests)
         self._period = period
         self._calls: "deque[float]" = deque()
         self._lock = threading.Lock()
-        self._stop = stop
+        self._paused_until = 0.0
 
-    def acquire(self) -> None:
+    def pause(self, seconds: float) -> None:
+        self._paused_until = max(self._paused_until, time.monotonic() + seconds)
+
+    def acquire(self, stop: threading.Event) -> None:
+        """Wait for a slot; ``stop`` (set on unload) ends any wait early."""
         with self._lock:
+            paused = self._paused_until - time.monotonic()
+            if paused > 0:
+                _LOGGER.debug("NMA paused after 429; waiting %.0fs", paused)
+                stop.wait(paused)
             now = time.monotonic()
             self._evict(now)
             if len(self._calls) >= self._max:
@@ -60,7 +66,7 @@ class _RateLimiter:
                         int(self._period),
                         sleep_for,
                     )
-                    self._stop.wait(sleep_for)  # returns early on close()
+                    stop.wait(sleep_for)
                 self._evict(time.monotonic())
             self._calls.append(time.monotonic())
 
@@ -89,6 +95,11 @@ def describe_error(err: BaseException) -> Tuple[Union[int, str], str]:
             return "refused", "Connection refused"
         return "connection", "Cannot connect to the API"
     return type(err).__name__, " ".join(str(err).split())[:120] or type(err).__name__
+
+
+# One limiter for every NMA connection: the API's limit is global, so N
+# connections with a limiter each could burst N times over it.
+_LIMITER = _RateLimiter(RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_PERIOD_S)
 
 
 @dataclass(slots=True)
@@ -138,9 +149,6 @@ class NmaApi:
         self.company_id = company_id
         self.page_size = page_size
         self._stop = threading.Event()
-        self._limiter = _RateLimiter(
-            RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_PERIOD_S, self._stop
-        )
         self._requests = 0
 
     def close(self) -> None:
@@ -150,11 +158,18 @@ class NmaApi:
 
     def _throttled(self, fn: Callable[..., T], *args, **kwargs) -> T:
         """Run a client call after waiting for a rate-limit slot."""
-        self._limiter.acquire()
+        _LIMITER.acquire(self._stop)
         if self._stop.is_set():
             raise NmaApiError(0, message="stopped (entry unloaded)")
         self._requests += 1
-        return fn(*args, **kwargs)
+        try:
+            return fn(*args, **kwargs)
+        except NmaApiError as err:
+            if err.status_code == 429:
+                # The shared limit is full (maybe by other API consumers):
+                # every NMA connection backs off, not just this request.
+                _LIMITER.pause(RATE_LIMIT_BACKOFF_S)
+            raise
 
     # -- single fetches ---------------------------------------------------- #
     def fetch_company(self) -> Company:
